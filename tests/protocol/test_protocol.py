@@ -343,6 +343,13 @@ def test_result_matching_protocol_has_no_deviation() -> None:
     validate_result(dense_example(), load_protocol(), {})
 
 
+def test_forbidden_package_in_provenance_is_rejected() -> None:
+    result = dense_example()
+    result["provenance"]["runtime"]["packages"]["torch"] = "2.0.0"
+    with pytest.raises(ProtocolValidationError, match="forbidden packages"):
+        validate_result(result, load_protocol(), {})
+
+
 def test_unrecorded_seed_change_is_rejected() -> None:
     result = dense_example()
     result["config"]["seed"] = 7

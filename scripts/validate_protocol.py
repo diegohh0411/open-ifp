@@ -192,6 +192,15 @@ def validate_result(
         rendered = "; ".join(error.message for error in schema_errors)
         raise ProtocolValidationError(f"schema validation failed: {rendered}")
 
+    packages = result["provenance"]["runtime"]["packages"]
+    forbidden = set(protocol["runtime"]["forbidden_packages"])
+    present_forbidden = sorted(name for name in packages if name in forbidden)
+    if present_forbidden:
+        raise ProtocolValidationError(
+            "forbidden packages in provenance.runtime.packages: "
+            + ", ".join(present_forbidden)
+        )
+
     run_id = result["run_id"]
     cited_ids = result["deviation_ids"]
     missing_ids = sorted(set(cited_ids) - set(deviations))
