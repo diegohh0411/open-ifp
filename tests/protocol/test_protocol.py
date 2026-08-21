@@ -208,6 +208,8 @@ def test_dense_example_validates_against_schema() -> None:
         "protocol_version",
         "run_id",
         "status",
+        "started_at",
+        "ended_at",
         "provenance",
         "hardware",
         "config",
@@ -246,6 +248,19 @@ def test_schema_rejects_moving_source_revision() -> None:
 def test_schema_rejects_unsupported_method() -> None:
     result = dense_example()
     result["config"]["method"] = "combined_p6_p8"
+    assert list(schema_validator().iter_errors(result))
+
+
+@pytest.mark.parametrize(
+    ("sequence_length", "gradient_accumulation_steps"),
+    [(256, 4), (512, 8)],
+)
+def test_schema_rejects_inconsistent_sequence_accumulation_pair(
+    sequence_length: int, gradient_accumulation_steps: int
+) -> None:
+    result = dense_example()
+    result["config"]["sequence_length"] = sequence_length
+    result["config"]["gradient_accumulation_steps"] = gradient_accumulation_steps
     assert list(schema_validator().iter_errors(result))
 
 
@@ -343,9 +358,24 @@ def test_result_matching_protocol_has_no_deviation() -> None:
     validate_result(dense_example(), load_protocol(), {})
 
 
+def test_missing_protocol_field_is_invalid_not_keyerror() -> None:
+    protocol = load_protocol()
+    del protocol["runtime"]["direct_packages"]["mlx"]
+    with pytest.raises(ProtocolValidationError, match="missing field"):
+        validate_result(dense_example(), protocol, {})
+
+
 def test_forbidden_package_in_provenance_is_rejected() -> None:
     result = dense_example()
     result["provenance"]["runtime"]["packages"]["torch"] = "2.0.0"
+    with pytest.raises(ProtocolValidationError, match="forbidden packages"):
+        validate_result(result, load_protocol(), {})
+
+
+@pytest.mark.parametrize("package_name", ["Torch", "TorchVision", "TorchTune"])
+def test_forbidden_package_name_variants_are_rejected(package_name: str) -> None:
+    result = dense_example()
+    result["provenance"]["runtime"]["packages"][package_name] = "2.0.0"
     with pytest.raises(ProtocolValidationError, match="forbidden packages"):
         validate_result(result, load_protocol(), {})
 

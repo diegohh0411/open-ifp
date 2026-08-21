@@ -197,6 +197,14 @@
       },
       "allOf": [
         {
+          "if": {"properties": {"sequence_length": {"const": 256}}, "required": ["sequence_length"]},
+          "then": {"properties": {"gradient_accumulation_steps": {"const": 8}}}
+        },
+        {
+          "if": {"properties": {"sequence_length": {"const": 512}}, "required": ["sequence_length"]},
+          "then": {"properties": {"gradient_accumulation_steps": {"const": 4}}}
+        },
+        {
           "if": {"properties": {"method": {"const": "dense_baseline"}}},
           "then": {"properties": {"p6": {"type": "null"}, "p8": {"type": "null"}}}
         },

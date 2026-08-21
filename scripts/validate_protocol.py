@@ -118,40 +118,50 @@ def walk_finite(value: Any, path: str = "") -> None:
 
 
 def expected_values(protocol: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
-    length = result["config"]["sequence_length"]
-    profile = protocol["training"]["sequence_profiles"][length]
-    return {
-        "/schema_version": protocol["schema_version"],
-        "/protocol_version": protocol["protocol_version"],
-        "/provenance/model/repository": protocol["model"]["repository"],
-        "/provenance/model/revision": protocol["model"]["revision"],
-        "/provenance/tokenizer/repository": protocol["model"]["tokenizer_repository"],
-        "/provenance/tokenizer/revision": protocol["model"]["tokenizer_revision"],
-        "/provenance/dataset/repository": protocol["training_data"]["repository"],
-        "/provenance/dataset/revision": protocol["training_data"]["revision"],
-        "/provenance/evaluator/repository": protocol["evaluation"]["repository"],
-        "/provenance/evaluator/revision": protocol["evaluation"]["revision"],
-        "/provenance/evaluator/implementation_path": protocol["evaluation"]["implementation_path"],
-        "/provenance/runtime/python": protocol["runtime"]["python"],
-        "/provenance/runtime/packages/mlx": protocol["runtime"]["direct_packages"]["mlx"],
-        "/provenance/runtime/packages/mlx-lm": protocol["runtime"]["direct_packages"]["mlx-lm"],
-        "/provenance/runtime/packages/huggingface_hub": protocol["runtime"]["direct_packages"]["huggingface_hub"],
-        "/hardware/chip": protocol["platform"]["chip"],
-        "/hardware/cpu_cores": protocol["platform"]["cpu_cores"],
-        "/hardware/gpu_cores": protocol["platform"]["gpu_cores"],
-        "/hardware/unified_memory_bytes": protocol["platform"]["unified_memory_bytes"],
-        "/config/seed": protocol["training"]["seed"],
-        "/config/microbatch_size": profile["microbatch_size"],
-        "/config/gradient_accumulation_steps": profile["gradient_accumulation_steps"],
-        "/config/effective_tokens_per_update": protocol["training"]["effective_tokens_per_update"],
-    }
+    try:
+        length = result["config"]["sequence_length"]
+        profile = protocol["training"]["sequence_profiles"][length]
+        return {
+            "/schema_version": protocol["schema_version"],
+            "/protocol_version": protocol["protocol_version"],
+            "/provenance/model/repository": protocol["model"]["repository"],
+            "/provenance/model/revision": protocol["model"]["revision"],
+            "/provenance/tokenizer/repository": protocol["model"]["tokenizer_repository"],
+            "/provenance/tokenizer/revision": protocol["model"]["tokenizer_revision"],
+            "/provenance/dataset/repository": protocol["training_data"]["repository"],
+            "/provenance/dataset/revision": protocol["training_data"]["revision"],
+            "/provenance/evaluator/repository": protocol["evaluation"]["repository"],
+            "/provenance/evaluator/revision": protocol["evaluation"]["revision"],
+            "/provenance/evaluator/implementation_path": protocol["evaluation"]["implementation_path"],
+            "/provenance/runtime/python": protocol["runtime"]["python"],
+            "/provenance/runtime/packages/mlx": protocol["runtime"]["direct_packages"]["mlx"],
+            "/provenance/runtime/packages/mlx-lm": protocol["runtime"]["direct_packages"]["mlx-lm"],
+            "/provenance/runtime/packages/huggingface_hub": protocol["runtime"]["direct_packages"]["huggingface_hub"],
+            "/hardware/chip": protocol["platform"]["chip"],
+            "/hardware/cpu_cores": protocol["platform"]["cpu_cores"],
+            "/hardware/gpu_cores": protocol["platform"]["gpu_cores"],
+            "/hardware/unified_memory_bytes": protocol["platform"]["unified_memory_bytes"],
+            "/config/seed": protocol["training"]["seed"],
+            "/config/microbatch_size": profile["microbatch_size"],
+            "/config/gradient_accumulation_steps": profile["gradient_accumulation_steps"],
+            "/config/effective_tokens_per_update": protocol["training"]["effective_tokens_per_update"],
+        }
+    except (KeyError, TypeError) as exc:
+        raise ProtocolValidationError("missing field required for protocol comparison") from exc
 
 
 def pointer_get(value: dict[str, Any], pointer: str) -> Any:
     current: Any = value
     for part in pointer.strip("/").split("/"):
-        current = current[part]
+        try:
+            current = current[part]
+        except (KeyError, TypeError) as exc:
+            raise ProtocolValidationError(f"missing field at {pointer}") from exc
     return current
+
+
+def normalize_package(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
 
 
 def approved_deviation(
@@ -192,9 +202,14 @@ def validate_result(
         rendered = "; ".join(error.message for error in schema_errors)
         raise ProtocolValidationError(f"schema validation failed: {rendered}")
 
-    packages = result["provenance"]["runtime"]["packages"]
-    forbidden = set(protocol["runtime"]["forbidden_packages"])
-    present_forbidden = sorted(name for name in packages if name in forbidden)
+    try:
+        packages = result["provenance"]["runtime"]["packages"]
+        forbidden = {normalize_package(name) for name in protocol["runtime"]["forbidden_packages"]}
+    except (KeyError, TypeError) as exc:
+        raise ProtocolValidationError("missing field required for protocol comparison") from exc
+    present_forbidden = sorted(
+        name for name in packages if normalize_package(name) in forbidden
+    )
     if present_forbidden:
         raise ProtocolValidationError(
             "forbidden packages in provenance.runtime.packages: "
