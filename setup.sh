@@ -24,7 +24,7 @@ fi
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt -r requirements-dev.txt
-python -c "import importlib.metadata as m; import mlx, mlx_lm; print('mlx', m.version('mlx')); print('mlx-lm ok')"
+python -c "import importlib.metadata as m; import mlx, mlx_lm; print('mlx', m.version('mlx')); print('mlx-lm', m.version('mlx-lm'))"
 echo
 echo "Activate with:  source .venv/bin/activate"
 echo "Smoke with:     ./scripts/smoke.sh"
