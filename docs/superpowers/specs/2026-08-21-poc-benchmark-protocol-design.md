@@ -1,6 +1,6 @@
 # P6/P8 Proof-of-Concept Benchmark Protocol Design
 
-**Status:** Approved in chat on 2026-08-21; written specification awaiting final user review
+**Status:** Approved by the user on 2026-08-21
 
 **Protocol release:** `0.1.0`
 
