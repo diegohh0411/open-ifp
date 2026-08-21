@@ -8,6 +8,6 @@ if [[ ! -d .venv ]]; then
 fi
 # shellcheck disable=SC1091
 source .venv/bin/activate
-python -c "import mlx; import mlx_lm; print('imports ok, mlx', mlx.__version__)"
+python -c "import importlib.metadata as m; import mlx, mlx_lm; print('imports ok, mlx', m.version('mlx'), 'mlx-lm', m.version('mlx-lm'))"
 python scripts/generate.py --max-tokens 32
 echo "smoke ok"
