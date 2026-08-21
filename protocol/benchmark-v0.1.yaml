@@ -1,0 +1,184 @@
+protocol_version: "0.1.0"
+schema_version: "0.1.0"
+status: released
+project: estancia
+purpose: p6_p8_five_day_proof_of_concept_gate
+governance:
+  semester_lock: p6
+  p8_status: candidate
+  combined_method_scope_allowed: false
+platform:
+  chip: Apple M4 Max
+  cpu_cores: 14
+  gpu_cores: 32
+  unified_memory_bytes: 38654705664
+  rss_gate_bytes: 32212254720
+runtime:
+  python: "3.12.14"
+  direct_packages:
+    mlx: "0.31.2"
+    mlx-lm: "0.31.3"
+    huggingface_hub: "1.27.0"
+  forbidden_packages:
+    - torch
+    - torchvision
+    - torchtune
+model:
+  repository: Qwen/Qwen2-0.5B-Instruct
+  revision: c540970f9e29518b1d8f06ab8b24cba66ad77b6d
+  tokenizer_repository: Qwen/Qwen2-0.5B-Instruct
+  tokenizer_revision: c540970f9e29518b1d8f06ab8b24cba66ad77b6d
+  allow_moving_revision: false
+  num_hidden_layers: 24
+  intermediate_size: 4864
+training_data:
+  repository: databricks/databricks-dolly-15k
+  revision: feb6109c23dc5bb14eaea059d14b9879284c9234
+  license: CC-BY-SA-3.0
+  seed: 20260821
+  categories:
+    - classification
+    - summarization
+    - information_extraction
+    - brainstorming
+  train_per_category: 100
+  held_out_per_category: 25
+  canonical_json_fields:
+    - instruction
+    - context
+    - response
+    - category
+  canonicalization:
+    encoding: utf-8
+    sort_keys: true
+    json_separators:
+      - ","
+      - ":"
+    hash_prefix: "20260821\n"
+    line_endings: lf
+  require_nonempty:
+    - instruction
+    - response
+  selection:
+    sort: sha256_ascending_within_category
+    train_slice:
+      - 0
+      - 100
+    held_out_slice:
+      - 100
+      - 125
+  serialization:
+    chat_template: pinned_tokenizer
+    user_fields:
+      - instruction
+      - context
+    context_separator: "\n\nContext:\n"
+    preserve_context_except_crlf_to_lf: true
+  loss_tokens: assistant_only
+evaluation:
+  name: ifeval
+  repository: google-research/google-research
+  revision: 13ec2c53411ad214f13709a2fcc1c1b730c605ff
+  implementation_path: instruction_following_eval
+  subset_size: 100
+  seed: 20260821
+  prompt_hash_prefix: "20260821\n"
+  selection:
+    primary: largest_uncovered_instruction_id_count
+    tie_break: prompt_sha256_ascending
+    fill: prompt_sha256_ascending
+    coverage_completion: every_available_instruction_id
+  manifest_fields:
+    - original_key
+    - prompt_sha256
+    - instruction_ids
+  judge: official_rules_only
+  decoding:
+    strategy: greedy
+    temperature: 0.0
+    top_p: 1.0
+    max_new_tokens: 1024
+    stop: eos_only
+training:
+  seed: 20260821
+  seed_targets:
+    - python
+    - numpy_when_present
+    - mlx
+    - data_order
+    - mask_initialization
+    - adapter_initialization
+  quality_sequence_length: 512
+  capacity_sequence_lengths:
+    - 256
+    - 512
+  effective_tokens_per_update: 2048
+  capacity_stream: deterministic_full_non_padding_token_blocks
+  sequence_profiles:
+    256:
+      microbatch_size: 1
+      gradient_accumulation_steps: 8
+    512:
+      microbatch_size: 1
+      gradient_accumulation_steps: 4
+  capacity_probe:
+    warmup_steps: 20
+    measured_steps: 200
+p6:
+  activation_grid:
+    - 0.4
+    - 0.6
+    - 0.8
+    - 1.0
+  rounding: round_half_up
+  realized_dimensions_for_qwen2_0_5b:
+    - 1946
+    - 2918
+    - 3891
+    - 4864
+  day3_fixed_fraction: 0.6
+  day3_train_tokens: 250000
+  dense_reference_fraction: 1.0
+p8:
+  methods:
+    - p8_full
+    - p8_lora
+    - p8_qlora
+  train_tokens: 250000
+  lora_rank: 8
+  qlora_rank: 8
+  qlora_quantization_bits: 4
+measurements:
+  - {name: training_wall_clock_seconds, unit: seconds, definition: training_only_excluding_evaluation}
+  - {name: train_tokens, unit: tokens, definition: non_padding_tokens}
+  - {name: train_tokens_per_second, unit: tokens_per_second, definition: train_tokens_divided_by_wall_clock}
+  - {name: step_time_p50_ms, unit: milliseconds, definition: measured_steps_only}
+  - {name: step_time_p95_ms, unit: milliseconds, definition: measured_steps_only}
+  - {name: mlx_peak_memory_bytes, unit: bytes, definition: mlx_allocator_peak}
+  - {name: mlx_active_memory_bytes, unit: bytes, definition: mlx_allocator_active}
+  - {name: mlx_cache_memory_bytes, unit: bytes, definition: mlx_allocator_cache}
+  - {name: os_peak_rss_bytes, unit: bytes, definition: process_rss_sampled_each_second}
+  - {name: memory_free_percent_min, unit: percent, definition: memory_pressure_q_minimum}
+  - {name: swap_used_start_bytes, unit: bytes, definition: sysctl_vm_swapusage_at_start}
+  - {name: swap_used_end_bytes, unit: bytes, definition: sysctl_vm_swapusage_at_end}
+  - {name: swap_delta_bytes, unit: bytes, definition: end_minus_start}
+  - {name: checkpoint_size_bytes, unit: bytes, definition: recursive_regular_file_sum}
+  - {name: held_out_nll, unit: nats_per_token, definition: assistant_token_negative_log_likelihood}
+  - {name: held_out_tokens, unit: tokens, definition: evaluated_assistant_tokens}
+  - {name: ifeval_strict_prompt_accuracy, unit: ratio, definition: official_strict_prompt_accuracy}
+  - {name: ifeval_strict_instruction_accuracy, unit: ratio, definition: official_strict_instruction_accuracy}
+  - {name: ifeval_loose_prompt_accuracy, unit: ratio, definition: official_loose_prompt_accuracy}
+  - {name: ifeval_loose_instruction_accuracy, unit: ratio, definition: official_loose_instruction_accuracy}
+sampling:
+  rss_interval_seconds: 1
+  memory_pressure_interval_seconds: 60
+  swap_interval_seconds: 60
+gates:
+  sustained_swap_allowed: false
+  sustained_swap_definition: end_above_start_or_three_consecutive_increases
+  max_peak_rss_bytes: 32212254720
+result_contract:
+  schema_path: protocol/run-result.schema.json
+  example_path: protocol/examples/dense-baseline.json
+  deviations_path: protocol/deviations.jsonl
+  raw_artifacts_required: true
