@@ -1,0 +1,94 @@
+{
+  "schema_version": "0.1.0",
+  "protocol_version": "0.1.0",
+  "run_id": "poc-20260821-dense-20260821-99554284",
+  "status": "completed",
+  "started_at": "2026-08-21T18:00:00Z",
+  "ended_at": "2026-08-21T18:10:00Z",
+  "provenance": {
+    "code_commit": "99554284db9bb899b5693eef0c6b5be913d1901c",
+    "model": {
+      "repository": "Qwen/Qwen2-0.5B-Instruct",
+      "revision": "c540970f9e29518b1d8f06ab8b24cba66ad77b6d",
+      "cache_snapshot": "models--Qwen--Qwen2-0.5B-Instruct/snapshots/c540970f9e29518b1d8f06ab8b24cba66ad77b6d",
+      "config_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+      "tokenizer_config_sha256": "0000000000000000000000000000000000000000000000000000000000000002"
+    },
+    "tokenizer": {
+      "repository": "Qwen/Qwen2-0.5B-Instruct",
+      "revision": "c540970f9e29518b1d8f06ab8b24cba66ad77b6d"
+    },
+    "dataset": {
+      "repository": "databricks/databricks-dolly-15k",
+      "revision": "feb6109c23dc5bb14eaea059d14b9879284c9234",
+      "split_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000003"
+    },
+    "evaluator": {
+      "repository": "google-research/google-research",
+      "revision": "13ec2c53411ad214f13709a2fcc1c1b730c605ff",
+      "implementation_path": "instruction_following_eval"
+    },
+    "runtime": {
+      "python": "3.12.14",
+      "packages": {
+        "mlx": "0.31.2",
+        "mlx-lm": "0.31.3",
+        "huggingface_hub": "1.27.0"
+      }
+    }
+  },
+  "hardware": {
+    "chip": "Apple M4 Max",
+    "cpu_cores": 14,
+    "gpu_cores": 32,
+    "unified_memory_bytes": 38654705664,
+    "macos_version": "15.6",
+    "macos_build": "24G84",
+    "host_id": "m4max-36gb-01"
+  },
+  "config": {
+    "method": "dense_baseline",
+    "seed": 20260821,
+    "sequence_length": 512,
+    "microbatch_size": 1,
+    "gradient_accumulation_steps": 4,
+    "effective_tokens_per_update": 2048,
+    "token_budget": 250000,
+    "optimizer": {"name": "adamw", "learning_rate": 0.00001, "weight_decay": 0.0},
+    "p6": null,
+    "p8": null
+  },
+  "metrics": {
+    "training_wall_clock_seconds": 600.0,
+    "train_tokens": 250000,
+    "train_tokens_per_second": 416.6666666667,
+    "step_time_p50_ms": 120.0,
+    "step_time_p95_ms": 150.0,
+    "mlx_peak_memory_bytes": 8000000000,
+    "mlx_active_memory_bytes": 7000000000,
+    "mlx_cache_memory_bytes": 500000000,
+    "os_peak_rss_bytes": 9000000000,
+    "memory_free_percent_min": 48.0,
+    "swap_used_start_bytes": 0,
+    "swap_used_end_bytes": 0,
+    "swap_delta_bytes": 0,
+    "checkpoint_size_bytes": 1000000000
+  },
+  "evaluation": {
+    "held_out_nll": 2.5,
+    "held_out_tokens": 10000,
+    "ifeval_strict_prompt_accuracy": 0.25,
+    "ifeval_strict_instruction_accuracy": 0.3,
+    "ifeval_loose_prompt_accuracy": 0.32,
+    "ifeval_loose_instruction_accuracy": 0.38
+  },
+  "artifacts": {
+    "raw_step_times": {"path": "results/example/raw-step-times.jsonl", "sha256": "0000000000000000000000000000000000000000000000000000000000000004"},
+    "raw_memory_samples": {"path": "results/example/raw-memory.jsonl", "sha256": "0000000000000000000000000000000000000000000000000000000000000005"},
+    "ifeval_subset_manifest": {"path": "results/example/ifeval-subset.jsonl", "sha256": "0000000000000000000000000000000000000000000000000000000000000006"},
+    "ifeval_responses": {"path": "results/example/ifeval-responses.jsonl", "sha256": "0000000000000000000000000000000000000000000000000000000000000007"},
+    "checkpoint": {"path": "results/example/checkpoint.safetensors", "sha256": "0000000000000000000000000000000000000000000000000000000000000008"}
+  },
+  "deviation_ids": [],
+  "failure": null
+}

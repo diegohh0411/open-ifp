@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import copy
+import json
 import re
 from pathlib import Path
 
+import pytest
 import yaml
+from jsonschema import Draft202012Validator
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -170,3 +174,155 @@ def test_protocol_declares_every_required_metric() -> None:
         "ifeval_loose_prompt_accuracy": ("ratio", "official_loose_prompt_accuracy"),
         "ifeval_loose_instruction_accuracy": ("ratio", "official_loose_instruction_accuracy"),
     }
+
+
+def load_json(path: Path) -> dict[str, object]:
+    with path.open(encoding="utf-8") as handle:
+        loaded = json.load(handle)
+    assert isinstance(loaded, dict)
+    return loaded
+
+
+def schema_validator() -> Draft202012Validator:
+    schema = load_json(ROOT / "protocol/run-result.schema.json")
+    Draft202012Validator.check_schema(schema)
+    return Draft202012Validator(schema)
+
+
+def dense_example() -> dict[str, object]:
+    return load_json(ROOT / "protocol/examples/dense-baseline.json")
+
+
+def test_dense_example_validates_against_schema() -> None:
+    schema_validator().validate(dense_example())
+
+
+@pytest.mark.parametrize(
+    "required_key",
+    [
+        "schema_version",
+        "protocol_version",
+        "run_id",
+        "status",
+        "provenance",
+        "hardware",
+        "config",
+        "metrics",
+        "evaluation",
+        "artifacts",
+        "deviation_ids",
+        "failure",
+    ],
+)
+def test_schema_rejects_missing_top_level_contract(required_key: str) -> None:
+    result = dense_example()
+    del result[required_key]
+    errors = list(schema_validator().iter_errors(result))
+    assert errors, f"missing {required_key} unexpectedly validated"
+
+
+def test_schema_rejects_negative_bytes() -> None:
+    result = dense_example()
+    result["metrics"]["os_peak_rss_bytes"] = -1
+    assert list(schema_validator().iter_errors(result))
+
+
+def test_schema_rejects_ratio_above_one() -> None:
+    result = dense_example()
+    result["evaluation"]["ifeval_strict_prompt_accuracy"] = 1.01
+    assert list(schema_validator().iter_errors(result))
+
+
+def test_schema_rejects_moving_source_revision() -> None:
+    result = dense_example()
+    result["provenance"]["model"]["revision"] = "main"
+    assert list(schema_validator().iter_errors(result))
+
+
+def test_schema_rejects_unsupported_method() -> None:
+    result = dense_example()
+    result["config"]["method"] = "combined_p6_p8"
+    assert list(schema_validator().iter_errors(result))
+
+
+def test_schema_requires_failure_details_for_failed_run() -> None:
+    result = dense_example()
+    result["status"] = "failed"
+    result["failure"] = None
+    assert list(schema_validator().iter_errors(result))
+
+
+def test_schema_enforces_method_specific_groups() -> None:
+    result = dense_example()
+    result["config"]["method"] = "p8_lora"
+    result["config"]["p8"] = {"regime": "lora", "rank": 8, "quantization_bits": None}
+    result["config"]["p6"] = {
+        "activation_fraction": 0.6,
+        "activation_grid": [0.4, 0.6, 0.8, 1.0],
+        "realized_dimensions_per_layer": [2918] * 24,
+        "mean_activation_fraction": 0.6,
+    }
+    assert list(schema_validator().iter_errors(result))
+
+
+def test_schema_requires_p8_group_for_p8_method() -> None:
+    result = dense_example()
+    result["config"]["method"] = "p8_lora"
+    assert list(schema_validator().iter_errors(result))
+
+
+@pytest.mark.parametrize(
+    ("method", "p6", "p8"),
+    [
+        ("dense_baseline", None, None),
+        ("p6_random_mask", {"activation_fraction": 0.6, "activation_grid": [0.4, 0.6, 0.8, 1.0], "realized_dimensions_per_layer": [2918] * 24, "mean_activation_fraction": 0.6}, None),
+        ("p6_static_mask", {"activation_fraction": 0.6, "activation_grid": [0.4, 0.6, 0.8, 1.0], "realized_dimensions_per_layer": [2918] * 24, "mean_activation_fraction": 0.6}, None),
+        ("p6_learned_fixed_k", {"activation_fraction": 0.6, "activation_grid": [0.4, 0.6, 0.8, 1.0], "realized_dimensions_per_layer": [2918] * 24, "mean_activation_fraction": 0.6}, None),
+        ("p6_variable_k", {"activation_fraction": None, "activation_grid": [0.4, 0.6, 0.8, 1.0], "realized_dimensions_per_layer": [2918] * 24, "mean_activation_fraction": 0.6}, None),
+        ("p8_full", None, {"regime": "full", "rank": None, "quantization_bits": None}),
+        ("p8_lora", None, {"regime": "lora", "rank": 8, "quantization_bits": None}),
+        ("p8_qlora", None, {"regime": "qlora", "rank": 8, "quantization_bits": 4}),
+    ],
+)
+def test_schema_accepts_each_method_group(method: str, p6: object, p8: object) -> None:
+    result = dense_example()
+    result["config"]["method"] = method
+    result["config"]["p6"] = p6
+    result["config"]["p8"] = p8
+    schema_validator().validate(result)
+
+
+@pytest.mark.parametrize(
+    ("group", "field"),
+    [
+        ("metrics", "training_wall_clock_seconds"),
+        ("metrics", "train_tokens"),
+        ("metrics", "train_tokens_per_second"),
+        ("metrics", "step_time_p50_ms"),
+        ("metrics", "step_time_p95_ms"),
+        ("metrics", "mlx_peak_memory_bytes"),
+        ("metrics", "mlx_active_memory_bytes"),
+        ("metrics", "mlx_cache_memory_bytes"),
+        ("metrics", "os_peak_rss_bytes"),
+        ("metrics", "memory_free_percent_min"),
+        ("metrics", "swap_used_start_bytes"),
+        ("metrics", "swap_used_end_bytes"),
+        ("metrics", "swap_delta_bytes"),
+        ("metrics", "checkpoint_size_bytes"),
+        ("evaluation", "held_out_nll"),
+        ("evaluation", "held_out_tokens"),
+        ("evaluation", "ifeval_strict_prompt_accuracy"),
+        ("evaluation", "ifeval_strict_instruction_accuracy"),
+        ("evaluation", "ifeval_loose_prompt_accuracy"),
+        ("evaluation", "ifeval_loose_instruction_accuracy"),
+        ("artifacts", "raw_step_times"),
+        ("artifacts", "raw_memory_samples"),
+        ("artifacts", "ifeval_subset_manifest"),
+        ("artifacts", "ifeval_responses"),
+        ("artifacts", "checkpoint"),
+    ],
+)
+def test_completed_run_rejects_null_measurements_and_artifacts(group: str, field: str) -> None:
+    result = dense_example()
+    result[group][field] = None
+    assert list(schema_validator().iter_errors(result))
