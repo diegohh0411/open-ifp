@@ -1,0 +1,4 @@
+# Apple MLX stack. Do not add torch / torchvision / torchtune.
+mlx>=0.26
+mlx-lm>=0.24
+huggingface_hub>=0.28

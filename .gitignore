@@ -1,0 +1,11 @@
+.venv/
+env-macos/
+__pycache__/
+*.py[cod]
+.DS_Store
+.python-version
+*.safetensors
+*.gguf
+.cache/
+huggingface-cache/
+.mlx_cache/
