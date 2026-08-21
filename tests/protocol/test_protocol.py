@@ -3,11 +3,15 @@ from __future__ import annotations
 import copy
 import json
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 import yaml
 from jsonschema import Draft202012Validator
+
+from scripts.validate_protocol import ProtocolValidationError, load_deviations, load_json_strict, validate_result
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -326,3 +330,105 @@ def test_completed_run_rejects_null_measurements_and_artifacts(group: str, field
     result = dense_example()
     result[group][field] = None
     assert list(schema_validator().iter_errors(result))
+
+
+def test_strict_loader_rejects_nan(tmp_path: Path) -> None:
+    path = tmp_path / "nan.json"
+    path.write_text('{"value": NaN}', encoding="utf-8")
+    with pytest.raises(ValueError, match="non-finite JSON constant"):
+        load_json_strict(path)
+
+
+def test_result_matching_protocol_has_no_deviation() -> None:
+    validate_result(dense_example(), load_protocol(), {})
+
+
+def test_unrecorded_seed_change_is_rejected() -> None:
+    result = dense_example()
+    result["config"]["seed"] = 7
+    with pytest.raises(ProtocolValidationError, match="/config/seed"):
+        validate_result(result, load_protocol(), {})
+
+
+def test_approved_exact_deviation_allows_seed_change() -> None:
+    result = dense_example()
+    result["config"]["seed"] = 7
+    result["deviation_ids"] = ["DEV-0001"]
+    deviations = {
+        "DEV-0001": {
+            "deviation_id": "DEV-0001",
+            "timestamp": "2026-08-21T18:30:00Z",
+            "author": "Diego Hernandez",
+            "affected_run_ids": [result["run_id"]],
+            "field_path": "/config/seed",
+            "old_value": 20260821,
+            "new_value": 7,
+            "rationale": "exercise deviation validation",
+            "comparability_impact": "not comparable to protocol seed",
+            "approval_status": "approved"
+        }
+    }
+    validate_result(result, load_protocol(), deviations)
+
+
+def test_deviation_must_match_run_path_and_value() -> None:
+    result = dense_example()
+    result["config"]["seed"] = 7
+    result["deviation_ids"] = ["DEV-0001"]
+    deviations = {
+        "DEV-0001": {
+            "deviation_id": "DEV-0001",
+            "timestamp": "2026-08-21T18:30:00Z",
+            "author": "Diego Hernandez",
+            "affected_run_ids": ["another-run"],
+            "field_path": "/config/seed",
+            "old_value": 20260821,
+            "new_value": 8,
+            "rationale": "wrong target",
+            "comparability_impact": "none",
+            "approval_status": "approved"
+        }
+    }
+    with pytest.raises(ProtocolValidationError, match="/config/seed"):
+        validate_result(result, load_protocol(), deviations)
+
+
+def test_deviation_reader_rejects_duplicate_ids(tmp_path: Path) -> None:
+    line = json.dumps({
+        "deviation_id": "DEV-0001",
+        "timestamp": "2026-08-21T18:30:00Z",
+        "author": "Diego Hernandez",
+        "affected_run_ids": ["run-12345678"],
+        "field_path": "/config/seed",
+        "old_value": 20260821,
+        "new_value": 7,
+        "rationale": "duplicate test",
+        "comparability_impact": "not comparable",
+        "approval_status": "approved"
+    })
+    path = tmp_path / "deviations.jsonl"
+    path.write_text(f"{line}\n{line}\n", encoding="utf-8")
+    with pytest.raises(ProtocolValidationError, match="duplicate deviation_id"):
+        load_deviations(path)
+
+
+def test_deviation_reader_rejects_missing_contract_field(tmp_path: Path) -> None:
+    path = tmp_path / "deviations.jsonl"
+    path.write_text(
+        json.dumps({"deviation_id": "DEV-0001", "approval_status": "approved"}) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ProtocolValidationError, match="missing fields"):
+        load_deviations(path)
+
+
+def test_cli_validates_dense_example() -> None:
+    completed = subprocess.run(
+        [sys.executable, "scripts/validate_protocol.py", "protocol/examples/dense-baseline.json"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert "valid: poc-20260821-dense-20260821-99554284" in completed.stdout
