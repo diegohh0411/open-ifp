@@ -26,6 +26,17 @@ python scripts/generate.py --prompt "Explain instruction-following pruning in on
 python scripts/generate.py --model Qwen/Qwen2-0.5B-Instruct --max-tokens 80
 ```
 
+Verify the Day 1B Qwen FFN SoftTopK path against the pinned cached model:
+
+```bash
+python -m scripts.verify_qwen2_mask
+```
+
+The command checks exact per-layer support at 40/60/80/100%, all-ones
+agreement with the dense model, mask-score gradients with a frozen backbone,
+and repeatable cache-aware greedy outputs. It writes the deterministic evidence
+artifact to `results/day1b/qwen2-mask-verification.json`.
+
 ## Layout
 
 ```
@@ -35,7 +46,9 @@ open-ifp/
   requirements-dev.txt      # direct protocol-test pins
   requirements-lock.txt     # complete released Python environment
   protocol/                 # released recipe, manifests, schema, and ledger
+  open_ifp/                 # SoftTopK and project-local masked Qwen2 path
   scripts/generate.py
+  scripts/verify_qwen2_mask.py
   scripts/smoke.sh
 ```
 
