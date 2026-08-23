@@ -7,7 +7,7 @@
   "required": [
     "schema_version", "protocol_version", "run_id", "status",
     "started_at", "ended_at", "provenance", "hardware", "config",
-    "metrics", "evaluation", "artifacts", "deviation_ids", "failure"
+    "metrics", "evaluation", "artifacts", "compute_gate", "deviation_ids", "failure"
   ],
   "properties": {
     "schema_version": {"const": "0.1.0"},
@@ -22,6 +22,7 @@
     "metrics": {"$ref": "#/$defs/metrics"},
     "evaluation": {"$ref": "#/$defs/evaluation"},
     "artifacts": {"$ref": "#/$defs/artifacts"},
+    "compute_gate": {"$ref": "#/$defs/compute_gate"},
     "deviation_ids": {
       "type": "array",
       "uniqueItems": true,
@@ -83,22 +84,49 @@
       "additionalProperties": false,
       "required": [
         "repository", "revision", "cache_snapshot",
-        "config_sha256", "tokenizer_config_sha256"
+        "config_sha256", "tokenizer_config_sha256", "files_sha256"
       ],
       "properties": {
         "repository": {"type": "string", "minLength": 1},
         "revision": {"$ref": "#/$defs/sha40"},
         "cache_snapshot": {"type": "string", "pattern": "^(?!/)(?!.*\\.\\./).+$"},
         "config_sha256": {"$ref": "#/$defs/sha256"},
-        "tokenizer_config_sha256": {"$ref": "#/$defs/sha256"}
+        "tokenizer_config_sha256": {"$ref": "#/$defs/sha256"},
+        "files_sha256": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "config.json", "generation_config.json", "merges.txt",
+            "model.safetensors", "tokenizer.json", "tokenizer_config.json",
+            "vocab.json"
+          ],
+          "properties": {
+            "config.json": {"$ref": "#/$defs/sha256"},
+            "generation_config.json": {"$ref": "#/$defs/sha256"},
+            "merges.txt": {"$ref": "#/$defs/sha256"},
+            "model.safetensors": {"$ref": "#/$defs/sha256"},
+            "tokenizer.json": {"$ref": "#/$defs/sha256"},
+            "tokenizer_config.json": {"$ref": "#/$defs/sha256"},
+            "vocab.json": {"$ref": "#/$defs/sha256"}
+          }
+        }
       }
     },
     "provenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["code_commit", "model", "tokenizer", "dataset", "evaluator", "runtime"],
+      "required": ["code_commit", "protocol", "model", "tokenizer", "dataset", "evaluator", "runtime"],
       "properties": {
         "code_commit": {"$ref": "#/$defs/sha40"},
+        "protocol": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["canonical_sha256", "schema_sha256"],
+          "properties": {
+            "canonical_sha256": {"$ref": "#/$defs/sha256"},
+            "schema_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
         "model": {"$ref": "#/$defs/model_source"},
         "tokenizer": {"$ref": "#/$defs/source"},
         "dataset": {"$ref": "#/$defs/dataset_source"},
@@ -106,9 +134,10 @@
         "runtime": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["python", "packages"],
+          "required": ["python", "lock_sha256", "packages"],
           "properties": {
             "python": {"type": "string", "pattern": "^3\\.12\\.[0-9]+$"},
+            "lock_sha256": {"$ref": "#/$defs/sha256"},
             "packages": {
               "type": "object",
               "minProperties": 3,
@@ -138,18 +167,21 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "method", "seed", "sequence_length", "microbatch_size",
+        "run_profile", "method", "seed", "sequence_length", "microbatch_size",
         "gradient_accumulation_steps", "effective_tokens_per_update",
-        "token_budget", "optimizer", "p6", "p8"
+        "token_budget", "warmup_steps", "measured_steps", "optimizer", "p6", "p8"
       ],
       "properties": {
+        "run_profile": {"enum": ["quality_train", "capacity_probe"]},
         "method": {"enum": ["dense_baseline", "p6_random_mask", "p6_static_mask", "p6_learned_fixed_k", "p6_variable_k", "p8_full", "p8_lora", "p8_qlora"]},
         "seed": {"type": "integer", "minimum": 0},
         "sequence_length": {"enum": [256, 512]},
         "microbatch_size": {"const": 1},
         "gradient_accumulation_steps": {"enum": [4, 8]},
         "effective_tokens_per_update": {"const": 2048},
-        "token_budget": {"type": "integer", "minimum": 1},
+        "token_budget": {"type": ["integer", "null"], "minimum": 1},
+        "warmup_steps": {"type": ["integer", "null"], "minimum": 0},
+        "measured_steps": {"type": ["integer", "null"], "minimum": 1},
         "optimizer": {
           "type": "object",
           "additionalProperties": false,
@@ -197,6 +229,30 @@
       },
       "allOf": [
         {
+          "if": {"properties": {"run_profile": {"const": "quality_train"}}, "required": ["run_profile"]},
+          "then": {
+            "properties": {
+              "sequence_length": {"const": 512},
+              "token_budget": {"type": "integer", "minimum": 1},
+              "warmup_steps": {"type": "null"},
+              "measured_steps": {"type": "null"}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"run_profile": {"const": "capacity_probe"}}, "required": ["run_profile"]},
+          "then": {
+            "properties": {
+              "method": {"const": "dense_baseline"},
+              "token_budget": {"type": "null"},
+              "warmup_steps": {"const": 20},
+              "measured_steps": {"const": 200},
+              "p6": {"type": "null"},
+              "p8": {"type": "null"}
+            }
+          }
+        },
+        {
           "if": {"properties": {"sequence_length": {"const": 256}}, "required": ["sequence_length"]},
           "then": {"properties": {"gradient_accumulation_steps": {"const": 8}}}
         },
@@ -242,7 +298,7 @@
         "step_time_p50_ms", "step_time_p95_ms", "mlx_peak_memory_bytes",
         "mlx_active_memory_bytes", "mlx_cache_memory_bytes", "os_peak_rss_bytes",
         "memory_free_percent_min", "swap_used_start_bytes", "swap_used_end_bytes",
-        "swap_delta_bytes", "checkpoint_size_bytes"
+        "swap_delta_bytes", "swap_increase_streak_max", "checkpoint_size_bytes"
       ],
       "properties": {
         "training_wall_clock_seconds": {"$ref": "#/$defs/nonnegative_number_or_null"},
@@ -258,6 +314,7 @@
         "swap_used_start_bytes": {"$ref": "#/$defs/nonnegative_integer_or_null"},
         "swap_used_end_bytes": {"$ref": "#/$defs/nonnegative_integer_or_null"},
         "swap_delta_bytes": {"type": ["integer", "null"]},
+        "swap_increase_streak_max": {"$ref": "#/$defs/nonnegative_integer_or_null"},
         "checkpoint_size_bytes": {"$ref": "#/$defs/nonnegative_integer_or_null"}
       }
     },
@@ -277,11 +334,13 @@
     "artifacts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["raw_step_times", "raw_memory_samples", "ifeval_subset_manifest", "ifeval_responses", "checkpoint"],
+      "required": ["raw_step_times", "raw_memory_samples", "training_split_manifest", "ifeval_subset_manifest", "held_out_evaluation", "ifeval_responses", "checkpoint"],
       "properties": {
         "raw_step_times": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/artifact"}]},
         "raw_memory_samples": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/artifact"}]},
+        "training_split_manifest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/artifact"}]},
         "ifeval_subset_manifest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/artifact"}]},
+        "held_out_evaluation": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/artifact"}]},
         "ifeval_responses": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/artifact"}]},
         "checkpoint": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/artifact"}]}
       }
@@ -304,6 +363,7 @@
             "swap_used_start_bytes": {"type": "integer", "minimum": 0},
             "swap_used_end_bytes": {"type": "integer", "minimum": 0},
             "swap_delta_bytes": {"type": "integer"},
+            "swap_increase_streak_max": {"type": "integer", "minimum": 0},
             "checkpoint_size_bytes": {"type": "integer", "minimum": 0}
           }
         }
@@ -331,12 +391,27 @@
           "properties": {
             "raw_step_times": {"$ref": "#/$defs/artifact"},
             "raw_memory_samples": {"$ref": "#/$defs/artifact"},
+            "training_split_manifest": {"$ref": "#/$defs/artifact"},
             "ifeval_subset_manifest": {"$ref": "#/$defs/artifact"},
+            "held_out_evaluation": {"$ref": "#/$defs/artifact"},
             "ifeval_responses": {"$ref": "#/$defs/artifact"},
             "checkpoint": {"$ref": "#/$defs/artifact"}
           }
         }
       ]
+    },
+    "compute_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "reasons"],
+      "properties": {
+        "passed": {"type": ["boolean", "null"]},
+        "reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["peak_rss_exceeded", "sustained_swap"]}
+        }
+      }
     },
     "failure": {
       "type": "object",
@@ -351,13 +426,77 @@
   },
   "allOf": [
     {
-      "if": {"properties": {"status": {"const": "completed"}}},
+      "if": {
+        "properties": {
+          "status": {"const": "completed"},
+          "config": {"properties": {"run_profile": {"const": "quality_train"}}, "required": ["run_profile"]}
+        },
+        "required": ["status", "config"]
+      },
       "then": {
         "properties": {
           "failure": {"type": "null"},
           "metrics": {"$ref": "#/$defs/completed_metrics"},
           "evaluation": {"$ref": "#/$defs/completed_evaluation"},
-          "artifacts": {"$ref": "#/$defs/completed_artifacts"}
+          "artifacts": {"$ref": "#/$defs/completed_artifacts"},
+          "compute_gate": {
+            "properties": {"passed": {"type": "boolean"}}
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {"const": "completed"},
+          "config": {"properties": {"run_profile": {"const": "capacity_probe"}}, "required": ["run_profile"]}
+        },
+        "required": ["status", "config"]
+      },
+      "then": {
+        "properties": {
+          "failure": {"type": "null"},
+          "metrics": {
+            "properties": {
+              "training_wall_clock_seconds": {"type": "number", "exclusiveMinimum": 0},
+              "train_tokens": {"type": "integer", "minimum": 1},
+              "train_tokens_per_second": {"type": "number", "exclusiveMinimum": 0},
+              "step_time_p50_ms": {"type": "number", "minimum": 0},
+              "step_time_p95_ms": {"type": "number", "minimum": 0},
+              "mlx_peak_memory_bytes": {"type": "integer", "minimum": 0},
+              "mlx_active_memory_bytes": {"type": "integer", "minimum": 0},
+              "mlx_cache_memory_bytes": {"type": "integer", "minimum": 0},
+              "os_peak_rss_bytes": {"type": "integer", "minimum": 0},
+              "memory_free_percent_min": {"type": "number", "minimum": 0, "maximum": 100},
+              "swap_used_start_bytes": {"type": "integer", "minimum": 0},
+              "swap_used_end_bytes": {"type": "integer", "minimum": 0},
+              "swap_delta_bytes": {"type": "integer"},
+              "swap_increase_streak_max": {"type": "integer", "minimum": 0},
+              "checkpoint_size_bytes": {"type": "null"}
+            }
+          },
+          "evaluation": {
+            "properties": {
+              "held_out_nll": {"type": "null"},
+              "held_out_tokens": {"type": "null"},
+              "ifeval_strict_prompt_accuracy": {"type": "null"},
+              "ifeval_strict_instruction_accuracy": {"type": "null"},
+              "ifeval_loose_prompt_accuracy": {"type": "null"},
+              "ifeval_loose_instruction_accuracy": {"type": "null"}
+            }
+          },
+          "artifacts": {
+            "properties": {
+              "raw_step_times": {"$ref": "#/$defs/artifact"},
+              "raw_memory_samples": {"$ref": "#/$defs/artifact"},
+              "training_split_manifest": {"type": "null"},
+              "ifeval_subset_manifest": {"type": "null"},
+              "held_out_evaluation": {"type": "null"},
+              "ifeval_responses": {"type": "null"},
+              "checkpoint": {"type": "null"}
+            }
+          },
+          "compute_gate": {"properties": {"passed": {"type": "boolean"}}}
         }
       }
     },

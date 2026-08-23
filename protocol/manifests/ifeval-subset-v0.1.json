@@ -1,0 +1,761 @@
+{
+  "entries": [
+    {
+      "instruction_ids": [
+        "keywords:frequency",
+        "change_case:english_lowercase",
+        "length_constraints:number_paragraphs"
+      ],
+      "original_key": 2943,
+      "prompt_sha256": "090b932c479413a651ee8895925a0768f4acbdb950c74ae48472f989cc7296f4"
+    },
+    {
+      "instruction_ids": [
+        "punctuation:no_comma",
+        "keywords:letter_frequency",
+        "length_constraints:number_words"
+      ],
+      "original_key": 1300,
+      "prompt_sha256": "0b96dbaf1b7f7422f307cf40e234fd8445f1964b68b006538236697eeb215705"
+    },
+    {
+      "instruction_ids": [
+        "combination:repeat_prompt",
+        "keywords:existence",
+        "keywords:forbidden_words"
+      ],
+      "original_key": 3371,
+      "prompt_sha256": "0e7f615dd8df3238a7611218632b6f676c2ccb68ed8d5776d392f6805ba1cd69"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:number_highlighted_sections",
+        "detectable_format:title",
+        "detectable_content:postscript"
+      ],
+      "original_key": 3710,
+      "prompt_sha256": "99f8994fa2c4f2e663da98350b14b555c3357d34c3aa26636d8466f46a643eba"
+    },
+    {
+      "instruction_ids": [
+        "length_constraints:number_sentences",
+        "detectable_format:number_bullet_lists",
+        "detectable_content:number_placeholders"
+      ],
+      "original_key": 1908,
+      "prompt_sha256": "f4d750db1f3805524d9859d421e740583d0cab0ad55c0fdbe318da1e03090f34"
+    },
+    {
+      "instruction_ids": [
+        "startend:quotation",
+        "detectable_format:multiple_sections"
+      ],
+      "original_key": 3367,
+      "prompt_sha256": "2a6842dcb58b2653df92371cd90b9fbe1d4a9cefd0d19750d22bb9729aa081a9"
+    },
+    {
+      "instruction_ids": [
+        "change_case:english_capital",
+        "startend:end_checker"
+      ],
+      "original_key": 2736,
+      "prompt_sha256": "4a3e16b2a1bb89c27c18e863454a0715c58028c3737c8687de1972893d6e470e"
+    },
+    {
+      "instruction_ids": [
+        "combination:two_responses",
+        "language:response_language",
+        "punctuation:no_comma"
+      ],
+      "original_key": 2596,
+      "prompt_sha256": "81b650290f5ba6aff8b8f328b8e37ad9e432dae186c03b9dbdd867d37a9c2d43"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:json_format",
+        "keywords:forbidden_words"
+      ],
+      "original_key": 1242,
+      "prompt_sha256": "088ca97eb980e53805b2502ed2430587b152ef3cf0304d2613b50b3d5af14f6f"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:number_bullet_lists",
+        "length_constraints:number_paragraphs",
+        "change_case:capital_word_frequency"
+      ],
+      "original_key": 3098,
+      "prompt_sha256": "0a7e3f0419c7fc0de321b9ed8d02c8a1effbe3c202aeb926eecbda19952a8bb9"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:constrained_response"
+      ],
+      "original_key": 3753,
+      "prompt_sha256": "0e5383edea26c1df42ac27a81cc09b417b5194e90d3497c2aebd33cea62fcadd"
+    },
+    {
+      "instruction_ids": [
+        "length_constraints:nth_paragraph_first_word"
+      ],
+      "original_key": 2215,
+      "prompt_sha256": "287e46bc3164c1bea73f01b0c227e1e5ca4a4a66abcea50f849f04edbc67bd7f"
+    },
+    {
+      "instruction_ids": [
+        "length_constraints:number_paragraphs",
+        "detectable_format:number_highlighted_sections"
+      ],
+      "original_key": 3351,
+      "prompt_sha256": "008319390250cb4989d3038e58049e73016caf153cb2a46cff245cd41ff4573c"
+    },
+    {
+      "instruction_ids": [
+        "punctuation:no_comma",
+        "detectable_format:number_highlighted_sections"
+      ],
+      "original_key": 2230,
+      "prompt_sha256": "00dd03a79c4f5dcd2f623862df9f9057b05505a94d4eeb5456157a56c1a37286"
+    },
+    {
+      "instruction_ids": [
+        "detectable_content:postscript"
+      ],
+      "original_key": 2070,
+      "prompt_sha256": "00f6a0cc623a3ec3eda54b2895eb1d8182b0232f9a04e72ba4bd20ea93eb0f5c"
+    },
+    {
+      "instruction_ids": [
+        "change_case:english_lowercase"
+      ],
+      "original_key": 2728,
+      "prompt_sha256": "020d0d52f85c0a5e63ec5f551f83a4e249c53f2d35c35f30f18844f1bc54eb74"
+    },
+    {
+      "instruction_ids": [
+        "detectable_content:number_placeholders",
+        "change_case:english_lowercase"
+      ],
+      "original_key": 3035,
+      "prompt_sha256": "0216cd84cda96c99014a3e3b20e4cb6e19093b8ea4f331510662f5a5536a1a2a"
+    },
+    {
+      "instruction_ids": [
+        "startend:end_checker"
+      ],
+      "original_key": 1893,
+      "prompt_sha256": "027a39152a8310c8bb343ec4668cb51574f305dd72f2078d0f6b70f250c781bb"
+    },
+    {
+      "instruction_ids": [
+        "keywords:forbidden_words",
+        "punctuation:no_comma"
+      ],
+      "original_key": 3479,
+      "prompt_sha256": "02c2bc735f831aafc9b8e21a42ce9640cc997eb348495b7d777698f6fc27b08c"
+    },
+    {
+      "instruction_ids": [
+        "keywords:existence"
+      ],
+      "original_key": 2485,
+      "prompt_sha256": "02e814a40b9a6041d09202d365619c9a985efb9d5b64015f82d49510af6274e1"
+    },
+    {
+      "instruction_ids": [
+        "keywords:frequency"
+      ],
+      "original_key": 2392,
+      "prompt_sha256": "04a781c179f9d836d8d9d7c655a12f64b660bd68ce441ba4a75d330cae8f9550"
+    },
+    {
+      "instruction_ids": [
+        "language:response_language"
+      ],
+      "original_key": 1154,
+      "prompt_sha256": "04be00febc7d97ceb5348d3b5cb17774c624c615f856effacdc39fea12324b53"
+    },
+    {
+      "instruction_ids": [
+        "language:response_language"
+      ],
+      "original_key": 3191,
+      "prompt_sha256": "050de001f1b3d34b229ff08b618e76f32e8518ff76fcdc781e3b51fb453ede49"
+    },
+    {
+      "instruction_ids": [
+        "combination:repeat_prompt",
+        "keywords:frequency"
+      ],
+      "original_key": 3369,
+      "prompt_sha256": "052970da287f365d4adef2e264226c080edc4f7c4e32bcb3ab1f6a5f0cfc2c72"
+    },
+    {
+      "instruction_ids": [
+        "detectable_content:number_placeholders",
+        "language:response_language"
+      ],
+      "original_key": 3744,
+      "prompt_sha256": "05364ca69e7e8e8eb31a9a64d771fc925be70d91f4d92b341445de0005317546"
+    },
+    {
+      "instruction_ids": [
+        "keywords:forbidden_words",
+        "keywords:frequency"
+      ],
+      "original_key": 127,
+      "prompt_sha256": "05f8a91410c2c47e330a35bd954e3f38101a920af4e91ccf481a64365c1b9189"
+    },
+    {
+      "instruction_ids": [
+        "punctuation:no_comma"
+      ],
+      "original_key": 2374,
+      "prompt_sha256": "062c68154b99ec00190158e52cdbe5f80c2608cbb3b37421d6fc66fb18132ee8"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:multiple_sections"
+      ],
+      "original_key": 2023,
+      "prompt_sha256": "067c264f2d2fa833d959bdf66429db7cdde008deed79b262ce1033e904325fb8"
+    },
+    {
+      "instruction_ids": [
+        "length_constraints:number_sentences",
+        "keywords:forbidden_words"
+      ],
+      "original_key": 3362,
+      "prompt_sha256": "067cd40bc488e819642a13a27a78b1665826642826b72d1340bfb593c3cc462e"
+    },
+    {
+      "instruction_ids": [
+        "change_case:english_capital"
+      ],
+      "original_key": 2341,
+      "prompt_sha256": "06883e5d171d0af144f686c69adc0deae10861a4b043c4fa8901b073e01aea65"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:number_highlighted_sections"
+      ],
+      "original_key": 1307,
+      "prompt_sha256": "068e772db4906000269d8fb6a022e75551f70bc0d47e8706753892e00b41c8f1"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:number_highlighted_sections"
+      ],
+      "original_key": 3453,
+      "prompt_sha256": "06a20db396203266bbb5ef01ca40fd6b9dda9260ebc6e18e8f3d98b1963674df"
+    },
+    {
+      "instruction_ids": [
+        "length_constraints:number_paragraphs"
+      ],
+      "original_key": 1236,
+      "prompt_sha256": "06d375eaa85672aec14d91a6348834f48937af08fcd8694b14a567fb2da13a44"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:title"
+      ],
+      "original_key": 2097,
+      "prompt_sha256": "06fc41b4a290e661571bfe10016c2a0a6ed87fb6134865ff3dcf786ef3d61437"
+    },
+    {
+      "instruction_ids": [
+        "change_case:english_capital"
+      ],
+      "original_key": 1566,
+      "prompt_sha256": "07ac3b418aec71037c8bba4c156a2bc4dcfdea1b25aaf2a74b8f7449037b6d44"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:number_bullet_lists"
+      ],
+      "original_key": 2195,
+      "prompt_sha256": "07c041bc38b5a60e51d41555013a9737908845c7e6df54fe1a08844bb40f903c"
+    },
+    {
+      "instruction_ids": [
+        "startend:quotation"
+      ],
+      "original_key": 2239,
+      "prompt_sha256": "080012723b2c7ed607f2f9420537b9a24597fcfbdb37d37a59135d8d2f9fa6f1"
+    },
+    {
+      "instruction_ids": [
+        "length_constraints:number_paragraphs"
+      ],
+      "original_key": 2921,
+      "prompt_sha256": "081ac0dc166cfd951c267921428a62b32f4a4eedb2f5b2e0f928a38ad2a114f0"
+    },
+    {
+      "instruction_ids": [
+        "punctuation:no_comma",
+        "language:response_language"
+      ],
+      "original_key": 1739,
+      "prompt_sha256": "083b07565362454a17420eca2d9af94e0f7ac5c54b476b0821171c0a0af7040d"
+    },
+    {
+      "instruction_ids": [
+        "language:response_language"
+      ],
+      "original_key": 2309,
+      "prompt_sha256": "087029e3f270cc2978a06909ce6f3b254d261953ff2794c56dfdfe5d592f6255"
+    },
+    {
+      "instruction_ids": [
+        "length_constraints:number_sentences",
+        "detectable_content:number_placeholders"
+      ],
+      "original_key": 2162,
+      "prompt_sha256": "0b08675843a2f0de7d8affc749b4c55d879a0503ec3e40598cdb58189a032f98"
+    },
+    {
+      "instruction_ids": [
+        "length_constraints:number_words",
+        "change_case:english_lowercase"
+      ],
+      "original_key": 1781,
+      "prompt_sha256": "0c4b4c983a5628d7e4429c6c06fcab75f8b6c53e0fba70321008f6a62a323fec"
+    },
+    {
+      "instruction_ids": [
+        "length_constraints:number_sentences"
+      ],
+      "original_key": 1268,
+      "prompt_sha256": "0ccc31acccc8a0e552f634fb4e49c8b4555a07fd37b626240c6eade00509c1f2"
+    },
+    {
+      "instruction_ids": [
+        "startend:end_checker"
+      ],
+      "original_key": 3001,
+      "prompt_sha256": "0dab078e1b73b6fa04d973ae9ac4b17d600635f6f8de16f4f52c49bfb22998ac"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:number_bullet_lists"
+      ],
+      "original_key": 1634,
+      "prompt_sha256": "0f0fd0689523b794b8aa98a7f5af636de11136828c52da746a305a288931b96f"
+    },
+    {
+      "instruction_ids": [
+        "combination:repeat_prompt"
+      ],
+      "original_key": 2465,
+      "prompt_sha256": "0f8a117ec47b491047e9353f975b6d83c2182498aa91d73b088622df2d73f568"
+    },
+    {
+      "instruction_ids": [
+        "keywords:forbidden_words"
+      ],
+      "original_key": 2328,
+      "prompt_sha256": "0fd66ceb14e0f5859760090737b1a5cd1eb33a5ac63056414a0921318cd6168e"
+    },
+    {
+      "instruction_ids": [
+        "keywords:forbidden_words"
+      ],
+      "original_key": 2028,
+      "prompt_sha256": "100a306d9967f631c07c39952025ab0d899a060d6bf9fd79a767b8bd95b91128"
+    },
+    {
+      "instruction_ids": [
+        "change_case:english_lowercase"
+      ],
+      "original_key": 1019,
+      "prompt_sha256": "11241d32574d99faa25c9e5d80da7b0baf04bbfea5b7bc204ed70c66846dbc7d"
+    },
+    {
+      "instruction_ids": [
+        "keywords:letter_frequency"
+      ],
+      "original_key": 201,
+      "prompt_sha256": "1209df0d49f32432f0c0fd078d837c1e28bfe22921498adf2c536384ae94d7da"
+    },
+    {
+      "instruction_ids": [
+        "startend:end_checker"
+      ],
+      "original_key": 1128,
+      "prompt_sha256": "125009a9fca1c2ee242b2084fab0ff881899df0c22a79d40c4694e30b1309f2e"
+    },
+    {
+      "instruction_ids": [
+        "startend:quotation",
+        "length_constraints:number_sentences"
+      ],
+      "original_key": 2303,
+      "prompt_sha256": "12501530bcf03dcb4b2cf0ec82e4719e79393aac3c290938c8ba07336466a2f9"
+    },
+    {
+      "instruction_ids": [
+        "combination:repeat_prompt"
+      ],
+      "original_key": 3563,
+      "prompt_sha256": "125094e063f09a8ea69cd26eddbd240b485c587623f17e0dc95cafc1c9d6f40d"
+    },
+    {
+      "instruction_ids": [
+        "keywords:letter_frequency"
+      ],
+      "original_key": 2265,
+      "prompt_sha256": "1474c8ec5cca4150bb98fb3fe0f7a8cdbc321c9132ece87d743c107ea1e083d9"
+    },
+    {
+      "instruction_ids": [
+        "keywords:frequency"
+      ],
+      "original_key": 3109,
+      "prompt_sha256": "177f7eee21983360306e0af57e8684d12bc5a819241349a0a05fd3bf2be37991"
+    },
+    {
+      "instruction_ids": [
+        "language:response_language"
+      ],
+      "original_key": 1108,
+      "prompt_sha256": "17dff65114fa850369d276f6625a9473f1e236067a0ae598e2ca9b7f63fd2a9e"
+    },
+    {
+      "instruction_ids": [
+        "keywords:frequency"
+      ],
+      "original_key": 2142,
+      "prompt_sha256": "18f6a9db4dc52e70a71a95f567233e5c664591b895f947c634cabc582703785d"
+    },
+    {
+      "instruction_ids": [
+        "keywords:letter_frequency",
+        "keywords:existence"
+      ],
+      "original_key": 2169,
+      "prompt_sha256": "1993512399dc89c19d891367d321d37f5eca47b3f5edbf6ebc1c60f6391eff5e"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:number_highlighted_sections"
+      ],
+      "original_key": 1646,
+      "prompt_sha256": "1a227fec1e4e1c6b7f1743b1470d07a26cc8c8f253c85f46288a7fb673a74f13"
+    },
+    {
+      "instruction_ids": [
+        "length_constraints:number_words"
+      ],
+      "original_key": 1258,
+      "prompt_sha256": "1aae819d3a0843fec4109d05d02c584fb81449b9cafc25dab90b9a63ba03177e"
+    },
+    {
+      "instruction_ids": [
+        "startend:quotation"
+      ],
+      "original_key": 122,
+      "prompt_sha256": "1b0aa660b8b14ee65e2815413b53ef3d539c7921ea1ac991a48d3840dc8a83c0"
+    },
+    {
+      "instruction_ids": [
+        "change_case:english_lowercase"
+      ],
+      "original_key": 1667,
+      "prompt_sha256": "1b9eaef8cf9db959fa36b3a645d9154f5412f40ed4b1fa9eae7375cede6205a0"
+    },
+    {
+      "instruction_ids": [
+        "startend:end_checker"
+      ],
+      "original_key": 1902,
+      "prompt_sha256": "1bba0589e858e0ec7e2f53f4969a4b6f9733dbf7e310a144cf175c827f5049d7"
+    },
+    {
+      "instruction_ids": [
+        "keywords:forbidden_words",
+        "length_constraints:number_sentences"
+      ],
+      "original_key": 1476,
+      "prompt_sha256": "1d01bc082715240e35802dd833d5eba3c0c0716a3b2f163f675462cdb3cdc699"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:json_format",
+        "keywords:forbidden_words"
+      ],
+      "original_key": 2649,
+      "prompt_sha256": "1d47ad6c64e79ee2b05c574f260450829c6d901e9afe864744ef13fca41d6c84"
+    },
+    {
+      "instruction_ids": [
+        "change_case:capital_word_frequency"
+      ],
+      "original_key": 3513,
+      "prompt_sha256": "1daa47eab46ec8855faec7405471ec0516a42adbbd4e03ca937716e56a7fcf49"
+    },
+    {
+      "instruction_ids": [
+        "combination:repeat_prompt",
+        "detectable_format:title"
+      ],
+      "original_key": 1012,
+      "prompt_sha256": "1db29ea2857020c06e82c036eea79bcc91f3a6b8014455266f17c82e5eab83a8"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:number_highlighted_sections",
+        "length_constraints:number_words"
+      ],
+      "original_key": 3243,
+      "prompt_sha256": "1e2a768070ca3062feddde5a2c4b04388a33e9516ecf77b210f66305a714fd41"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:number_bullet_lists"
+      ],
+      "original_key": 1934,
+      "prompt_sha256": "1e6aabed018a800d9d22045db21a8c5187812484213e5370e53dd6ef4b7ef5d6"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:number_highlighted_sections",
+        "punctuation:no_comma",
+        "startend:end_checker"
+      ],
+      "original_key": 3724,
+      "prompt_sha256": "1ee0cfa7ed81922f0672a70ca921c0cd408ad8514931eb0d1ec2b3022888a882"
+    },
+    {
+      "instruction_ids": [
+        "language:response_language"
+      ],
+      "original_key": 1259,
+      "prompt_sha256": "1ef36347172c4e74a17b803e756119f90a59fea1a911c7943de633789657e1b4"
+    },
+    {
+      "instruction_ids": [
+        "detectable_content:postscript"
+      ],
+      "original_key": 2622,
+      "prompt_sha256": "1ef98bcdc133ed2f145b05ea9c34c737b746a16d1c06eace7a421c3d31f2f20c"
+    },
+    {
+      "instruction_ids": [
+        "combination:repeat_prompt",
+        "keywords:existence"
+      ],
+      "original_key": 1139,
+      "prompt_sha256": "1f291ba8afbde7d2b8214dfaf044a81f0cfa3a298f02eb77bfb9e3ddf2f38026"
+    },
+    {
+      "instruction_ids": [
+        "length_constraints:number_words",
+        "keywords:forbidden_words",
+        "startend:end_checker"
+      ],
+      "original_key": 3114,
+      "prompt_sha256": "1fc13e7446b03c71708c4b7178d8839bac2131982034cda373f8133933154c46"
+    },
+    {
+      "instruction_ids": [
+        "keywords:letter_frequency"
+      ],
+      "original_key": 2350,
+      "prompt_sha256": "1fe5d3ef34f8b7ebeefe64fa02150f0c1911d7e1814922f270511ffa59b696dc"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:json_format",
+        "keywords:forbidden_words"
+      ],
+      "original_key": 371,
+      "prompt_sha256": "1ffab92bb571551fa7d78035f752288e7f38699b4bf20970147237d04a49b876"
+    },
+    {
+      "instruction_ids": [
+        "length_constraints:number_sentences"
+      ],
+      "original_key": 2749,
+      "prompt_sha256": "1ffac8f442cda37e464e352a826a97cb8bbe78dd4950cdb6ed1f6df5527bb2ef"
+    },
+    {
+      "instruction_ids": [
+        "length_constraints:number_sentences",
+        "change_case:capital_word_frequency"
+      ],
+      "original_key": 1834,
+      "prompt_sha256": "20a936b38de80c94b61a4b7de5e0ed3b86d11dda685d535ccceb4e30311ca766"
+    },
+    {
+      "instruction_ids": [
+        "language:response_language"
+      ],
+      "original_key": 3682,
+      "prompt_sha256": "20c589b9c7bc98748c030fd14325bcd3d81a3420d6922debaa090c28d636c563"
+    },
+    {
+      "instruction_ids": [
+        "startend:quotation"
+      ],
+      "original_key": 2532,
+      "prompt_sha256": "216881a45924f26d204dd6191fcd423bd9e2b1b824fe0ffef5e9e624d46962ba"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:number_highlighted_sections",
+        "length_constraints:number_sentences",
+        "length_constraints:number_sentences"
+      ],
+      "original_key": 3089,
+      "prompt_sha256": "217ac63c9b98a55a90507b82baff3a45a270bbebf47ccd56df4c832caab6ee99"
+    },
+    {
+      "instruction_ids": [
+        "language:response_language"
+      ],
+      "original_key": 2464,
+      "prompt_sha256": "21cf49f53be5ff42037e82a50f93eb38b932957dcf823ac6734f8029e6cfcb38"
+    },
+    {
+      "instruction_ids": [
+        "startend:quotation",
+        "keywords:forbidden_words"
+      ],
+      "original_key": 3709,
+      "prompt_sha256": "223839565a2b2449fa6ffb5fb0939bdd476c96c19c729370332398602b3e1645"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:title"
+      ],
+      "original_key": 3719,
+      "prompt_sha256": "236787517c70fcdfd9c03b2464213f7caac3395016244330005dac64435986a2"
+    },
+    {
+      "instruction_ids": [
+        "change_case:english_lowercase"
+      ],
+      "original_key": 1361,
+      "prompt_sha256": "2385846cb4b2aa4a52ff5c1940c47fd1e9ed0b9240092185307cd261fdd83460"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:number_highlighted_sections",
+        "length_constraints:number_words"
+      ],
+      "original_key": 340,
+      "prompt_sha256": "23de1e737406eaa3fe0f1ee2819057dc929a8cc167cc139ad1c369ad8fd772b8"
+    },
+    {
+      "instruction_ids": [
+        "length_constraints:number_words"
+      ],
+      "original_key": 3425,
+      "prompt_sha256": "24fc54e848abad119b775959a3895b9d5b49887c8eb29a867ae79af2e74db881"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:number_bullet_lists",
+        "length_constraints:number_words"
+      ],
+      "original_key": 136,
+      "prompt_sha256": "25ac9ce62dc203394fc8835a42ba4eec6378b8714198350fb01104a4b49ea3ca"
+    },
+    {
+      "instruction_ids": [
+        "keywords:letter_frequency"
+      ],
+      "original_key": 1130,
+      "prompt_sha256": "2627ff29e0a8478dca6429837d658bdaa7a8329cd6e0e8f29d39312563c9b2ab"
+    },
+    {
+      "instruction_ids": [
+        "change_case:capital_word_frequency",
+        "length_constraints:number_paragraphs"
+      ],
+      "original_key": 2180,
+      "prompt_sha256": "2699f9c827aa3da2213760f1c1b09e92b85eee436a4ff6773c9fc50e4d4b184b"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:multiple_sections",
+        "detectable_format:number_bullet_lists"
+      ],
+      "original_key": 1481,
+      "prompt_sha256": "2722bb72873ef6704c1a925c42fbd5eb038e495670462f249aa16478a8a4b46f"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:title"
+      ],
+      "original_key": 295,
+      "prompt_sha256": "275aab6f3152483f570099e9dc88906b525fb4d087ee9b832daf52c8ade2725b"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:number_highlighted_sections",
+        "length_constraints:number_words"
+      ],
+      "original_key": 3569,
+      "prompt_sha256": "2825c5b390d8a5a5bb39f4580f1fd60f6f102a15f61eea467b6f5489f6bf12f8"
+    },
+    {
+      "instruction_ids": [
+        "startend:quotation",
+        "detectable_format:number_bullet_lists"
+      ],
+      "original_key": 1325,
+      "prompt_sha256": "28b7a6e7d922d3dfcd06460fb55028cde75e8b8111fb97500246f21fdd39771f"
+    },
+    {
+      "instruction_ids": [
+        "length_constraints:number_paragraphs"
+      ],
+      "original_key": 1858,
+      "prompt_sha256": "2905325baeed1189ffa4450de271df3b52e9f66218c2c28ca3e8d36f142f05f4"
+    },
+    {
+      "instruction_ids": [
+        "length_constraints:number_paragraphs"
+      ],
+      "original_key": 1248,
+      "prompt_sha256": "29a138ec1fe9b4b4c8cbb0e59609a938372992191fa44f71c02b6f128034ded0"
+    },
+    {
+      "instruction_ids": [
+        "detectable_format:number_highlighted_sections",
+        "length_constraints:number_words"
+      ],
+      "original_key": 349,
+      "prompt_sha256": "2a036886cd375fc058ec7fe98346ae13239d180ebce4a88dc3cfca25ea43f891"
+    },
+    {
+      "instruction_ids": [
+        "change_case:english_capital"
+      ],
+      "original_key": 3186,
+      "prompt_sha256": "2a3b52d3982606d80b1751e1bdce1b7299de215eca8e79ece2ecc7c02878fd6d"
+    },
+    {
+      "instruction_ids": [
+        "startend:quotation",
+        "keywords:letter_frequency"
+      ],
+      "original_key": 2605,
+      "prompt_sha256": "2a5d200984e8b90ca6094fa2a76540f6ab2bec67c63aa664a94921debc2286b1"
+    },
+    {
+      "instruction_ids": [
+        "keywords:letter_frequency"
+      ],
+      "original_key": 3478,
+      "prompt_sha256": "2a6cb18e558431b966a943779cabd91ef73d401073b1320098feca0007a4bb4d"
+    }
+  ],
+  "kind": "ifeval_objective_subset",
+  "manifest_version": "0.1.0",
+  "repository": "google-research/google-research",
+  "revision": "13ec2c53411ad214f13709a2fcc1c1b730c605ff",
+  "source_sha256": "67ffeee0fcb87c317c5b08a2de85557b4a7e96ada6178aa645b4954fe4b53d49"
+}

@@ -1,0 +1,8 @@
+{
+  "releases": {
+    "0.1.0": {
+      "protocol_canonical_sha256": "6b481b85a210226f47967ccb5562533413dc91f3d85b54e7a7e72f29ae74ff45",
+      "schema_canonical_sha256": "09b808c6ce36e0e183d42489e78206e0a686876a68ca38be69727dbb94a9ab63"
+    }
+  }
+}

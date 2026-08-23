@@ -4,15 +4,28 @@
   "run_id": "poc-20260821-dense-20260821-99554284",
   "status": "completed",
   "started_at": "2026-08-21T18:00:00Z",
-  "ended_at": "2026-08-21T18:10:00Z",
+  "ended_at": "2026-08-21T18:00:10Z",
   "provenance": {
     "code_commit": "99554284db9bb899b5693eef0c6b5be913d1901c",
+    "protocol": {
+      "canonical_sha256": "6b481b85a210226f47967ccb5562533413dc91f3d85b54e7a7e72f29ae74ff45",
+      "schema_sha256": "09b808c6ce36e0e183d42489e78206e0a686876a68ca38be69727dbb94a9ab63"
+    },
     "model": {
       "repository": "Qwen/Qwen2-0.5B-Instruct",
       "revision": "c540970f9e29518b1d8f06ab8b24cba66ad77b6d",
       "cache_snapshot": "models--Qwen--Qwen2-0.5B-Instruct/snapshots/c540970f9e29518b1d8f06ab8b24cba66ad77b6d",
-      "config_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
-      "tokenizer_config_sha256": "0000000000000000000000000000000000000000000000000000000000000002"
+      "config_sha256": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185",
+      "tokenizer_config_sha256": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc",
+      "files_sha256": {
+        "config.json": "168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185",
+        "generation_config.json": "e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6",
+        "merges.txt": "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3",
+        "model.safetensors": "130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96",
+        "tokenizer.json": "f7c9b2dba4a296b1aa76c16a34b8225c0c118978400d4bb66bff0902d702f5b8",
+        "tokenizer_config.json": "482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc",
+        "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+      }
     },
     "tokenizer": {
       "repository": "Qwen/Qwen2-0.5B-Instruct",
@@ -21,7 +34,7 @@
     "dataset": {
       "repository": "databricks/databricks-dolly-15k",
       "revision": "feb6109c23dc5bb14eaea059d14b9879284c9234",
-      "split_manifest_sha256": "0000000000000000000000000000000000000000000000000000000000000003"
+      "split_manifest_sha256": "ea1c70831e877b1e96fab0eaa4b73685ef2e088afea546316f4ca02fb9720bbd"
     },
     "evaluator": {
       "repository": "google-research/google-research",
@@ -30,9 +43,50 @@
     },
     "runtime": {
       "python": "3.12.14",
+      "lock_sha256": "89482f362604bfee785a4bc628236677378c432c4ac9e15de63347746c6bf4cd",
       "packages": {
+        "annotated-doc": "0.0.5",
+        "anyio": "4.14.2",
+        "attrs": "26.1.0",
+        "certifi": "2026.7.22",
+        "click": "8.4.2",
+        "filelock": "3.32.3",
+        "fsspec": "2026.7.0",
+        "h11": "0.16.0",
+        "hf-xet": "1.6.0",
+        "httpcore": "1.0.9",
+        "httpx": "0.28.1",
+        "idna": "3.19",
+        "iniconfig": "2.3.0",
+        "Jinja2": "3.1.6",
+        "jsonschema": "4.26.0",
+        "jsonschema-specifications": "2025.9.1",
+        "markdown-it-py": "4.2.0",
+        "MarkupSafe": "3.0.3",
+        "mdurl": "0.1.2",
         "mlx": "0.31.2",
         "mlx-lm": "0.31.3",
+        "mlx-metal": "0.31.2",
+        "numpy": "2.5.2",
+        "packaging": "26.3",
+        "pip": "26.2.1",
+        "pluggy": "1.6.0",
+        "protobuf": "7.36.0",
+        "Pygments": "2.21.0",
+        "pytest": "9.1.1",
+        "PyYAML": "6.0.3",
+        "referencing": "0.37.0",
+        "regex": "2026.7.19",
+        "rich": "15.0.0",
+        "rpds-py": "2026.6.3",
+        "safetensors": "0.8.0",
+        "sentencepiece": "0.2.2",
+        "shellingham": "1.5.4",
+        "tokenizers": "0.22.2",
+        "tqdm": "4.70.0",
+        "transformers": "5.15.1",
+        "typer": "0.27.1",
+        "typing_extensions": "4.16.0",
         "huggingface_hub": "1.27.0"
       }
     }
@@ -47,6 +101,7 @@
     "host_id": "m4max-36gb-01"
   },
   "config": {
+    "run_profile": "quality_train",
     "method": "dense_baseline",
     "seed": 20260821,
     "sequence_length": 512,
@@ -54,16 +109,18 @@
     "gradient_accumulation_steps": 4,
     "effective_tokens_per_update": 2048,
     "token_budget": 250000,
+    "warmup_steps": null,
+    "measured_steps": null,
     "optimizer": {"name": "adamw", "learning_rate": 0.00001, "weight_decay": 0.0},
     "p6": null,
     "p8": null
   },
   "metrics": {
-    "training_wall_clock_seconds": 600.0,
+    "training_wall_clock_seconds": 10.0,
     "train_tokens": 250000,
-    "train_tokens_per_second": 416.6666666667,
-    "step_time_p50_ms": 120.0,
-    "step_time_p95_ms": 150.0,
+    "train_tokens_per_second": 25000.0,
+    "step_time_p50_ms": 50.0,
+    "step_time_p95_ms": 50.0,
     "mlx_peak_memory_bytes": 8000000000,
     "mlx_active_memory_bytes": 7000000000,
     "mlx_cache_memory_bytes": 500000000,
@@ -72,22 +129,29 @@
     "swap_used_start_bytes": 0,
     "swap_used_end_bytes": 0,
     "swap_delta_bytes": 0,
-    "checkpoint_size_bytes": 1000000000
+    "swap_increase_streak_max": 0,
+    "checkpoint_size_bytes": 38
   },
   "evaluation": {
     "held_out_nll": 2.5,
     "held_out_tokens": 10000,
     "ifeval_strict_prompt_accuracy": 0.25,
-    "ifeval_strict_instruction_accuracy": 0.3,
+    "ifeval_strict_instruction_accuracy": 0.29605263157894735,
     "ifeval_loose_prompt_accuracy": 0.32,
-    "ifeval_loose_instruction_accuracy": 0.38
+    "ifeval_loose_instruction_accuracy": 0.3815789473684211
   },
   "artifacts": {
-    "raw_step_times": {"path": "results/example/raw-step-times.jsonl", "sha256": "0000000000000000000000000000000000000000000000000000000000000004"},
-    "raw_memory_samples": {"path": "results/example/raw-memory.jsonl", "sha256": "0000000000000000000000000000000000000000000000000000000000000005"},
-    "ifeval_subset_manifest": {"path": "results/example/ifeval-subset.jsonl", "sha256": "0000000000000000000000000000000000000000000000000000000000000006"},
-    "ifeval_responses": {"path": "results/example/ifeval-responses.jsonl", "sha256": "0000000000000000000000000000000000000000000000000000000000000007"},
-    "checkpoint": {"path": "results/example/checkpoint.safetensors", "sha256": "0000000000000000000000000000000000000000000000000000000000000008"}
+    "raw_step_times": {"path": "results/example/raw-step-times.json", "sha256": "3238ed9f56b5baa262cf9beee92f7b7812058f741e9275fc5d2d384484cea78b"},
+    "raw_memory_samples": {"path": "results/example/raw-memory.json", "sha256": "740e9229a7cc8fd80216d29e7f74544be5f19b84d00ffeb8bd4ef0139b20228e"},
+    "training_split_manifest": {"path": "protocol/manifests/dolly-train-heldout-v0.1.json", "sha256": "ea1c70831e877b1e96fab0eaa4b73685ef2e088afea546316f4ca02fb9720bbd"},
+    "ifeval_subset_manifest": {"path": "protocol/manifests/ifeval-subset-v0.1.json", "sha256": "70c47d105499f10c7d8d6080774c71d247b5e70ffc2de41e02826746ff46cfee"},
+    "held_out_evaluation": {"path": "results/example/held-out-evaluation.json", "sha256": "ffa736a9ae14c96c52e3783ee10a5091d2ec434c982edab19e2d5465ef49ad83"},
+    "ifeval_responses": {"path": "results/example/ifeval-results.json", "sha256": "2e8f24859c36a67cc39ee960f7e859d528067eb98ce20afb2427cf6c4838bc67"},
+    "checkpoint": {"path": "results/example/checkpoint-manifest.json", "sha256": "7278d1358631e14a2b3d35db25c406862c37dc5087db071b97a0ed8555f61c2a"}
+  },
+  "compute_gate": {
+    "passed": true,
+    "reasons": []
   },
   "deviation_ids": [],
   "failure": null

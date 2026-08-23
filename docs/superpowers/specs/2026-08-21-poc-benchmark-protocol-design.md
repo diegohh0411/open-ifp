@@ -2,6 +2,8 @@
 
 **Status:** Approved by the user on 2026-08-21
 
+**Strict executable amendment:** Approved by the user on 2026-08-22 after PR review. Protocol `0.1.0` now materializes canonical Dolly/IFEval manifests, pins the complete Python environment and model-file digests, fingerprints the released YAML/schema, and validates cross-field result semantics and compute-gate outcomes.
+
 **Protocol release:** `0.1.0`
 
 **Project:** Estancia de investigación
@@ -39,7 +41,6 @@ Later data, training, evaluation, and measurement code consumes these files. Tho
 
 ### Excluded from Day 1A
 
-- Downloading or materializing Dolly or IFEval examples.
 - Implementing the Qwen FFN mask, training loop, LoRA, QLoRA, or full fine-tuning.
 - Implementing the IFEval generation runner or macOS memory sampler.
 - Running the five-day experiments.
@@ -47,6 +48,8 @@ Later data, training, evaluation, and measurement code consumes these files. Tho
 - Adding PyTorch, Transformers-based model execution, or NVIDIA-specific code.
 
 Those items belong to Day 1B and later gate tasks. Day 1A defines their required inputs and outputs.
+
+The strict amendment makes one exception to the original scope boundary: Day 1A materializes selection manifests—not dataset contents—so later runners can prove that they used the exact same rows and prompts.
 
 ## Canonical artifacts
 
@@ -82,7 +85,7 @@ This resolution rule avoids inventing an untested MLX/`mlx-lm` combination while
 - Hugging Face revision: `c540970f9e29518b1d8f06ab8b24cba66ad77b6d`.
 - Tokenizer: loaded from the same repository and revision.
 - Model and tokenizer files must be acquired by immutable revision, never by the moving name `main`.
-- The run records the repository, revision, cache-relative snapshot locator, and SHA-256 digest of `config.json` and `tokenizer_config.json`. The locator must not contain a username or absolute home-directory path.
+- The run records the repository, revision, exact cache-relative snapshot locator, and SHA-256 digest of every model/tokenizer payload used by MLX, including `model.safetensors`, tokenizer vocabulary/merges, and configuration files. The locator must not contain a username or absolute home-directory path.
 - Qwen 1.5B is not part of protocol `0.1.0`; it is a later capacity probe and requires a recorded deviation or a new protocol version.
 
 ### Instruction-training data
@@ -152,7 +155,7 @@ Every completed training run records:
 - Held-out assistant-token negative log-likelihood and evaluated token count.
 - IFEval strict prompt accuracy, strict instruction accuracy, loose prompt accuracy, and loose instruction accuracy.
 
-Day 2 capacity runs use 20 warm-up steps followed by 200 measured steps for Qwen 0.5B. Warm-up steps do not contribute to step-time percentiles or throughput. Raw step durations and raw memory samples are saved as artifacts; aggregate values alone are insufficient.
+Day 2 capacity runs use 20 warm-up steps followed by 200 measured steps for Qwen 0.5B. Warm-up steps do not contribute to step-time percentiles or throughput. Raw step durations and raw memory samples are saved as artifacts; aggregate values alone are insufficient. The raw measured-step total cannot exceed training wall-clock time. Raw memory uses distinct timestamped streams for one-second RSS/MLX samples, one-minute memory-pressure samples, and one-minute swap samples, with start/end samples in every stream.
 
 All sizes use bytes, all durations state their unit in the field name, and all ratios are JSON numbers between `0` and `1`. JSON `NaN`, positive infinity, and negative infinity are forbidden.
 
@@ -164,10 +167,10 @@ Every result has these top-level objects:
 - `run_id`, `status`, `started_at`, and `ended_at`.
 - `provenance`: code commit, model, tokenizer, data, evaluator, and runtime versions.
 - `hardware`: chip, core counts, unified memory, macOS version/build, and host identifier.
-- `config`: method, seed, sequence length, microbatch, accumulation, effective tokens/update, token budget, optimizer settings, P6 mask settings, and P8 adapter settings.
+- `config`: either the `quality_train` or `capacity_probe` run profile, method, seed, sequence length, microbatch, accumulation, effective tokens/update, token budget, warm-up/measured steps, optimizer settings, P6 mask settings, and P8 adapter settings. Capacity probes are step-budgeted dense baselines with 20 warm-up and 200 measured steps; quality runs are token-budgeted at length 512.
 - `metrics`: timing, throughput, MLX memory, OS RSS, memory pressure, swap, and checkpoint size.
 - `evaluation`: held-out loss/token count and IFEval scores.
-- `artifacts`: paths and SHA-256 digests for raw samples, outputs, checkpoints, and subset manifests.
+- `artifacts`: repository-contained paths and SHA-256 digests for raw step and memory samples, held-out evaluation totals, IFEval counts, checkpoint manifests, and subset manifests. A checkpoint manifest must enumerate the exact recursive regular-file set with per-file sizes and hashes. The validator recomputes every reported aggregate that these artifacts support.
 - `deviation_ids`: zero or more identifiers present in `protocol/deviations.jsonl`.
 - `failure`: `null` for completed runs or a structured failure object for failed runs.
 
@@ -190,6 +193,8 @@ Method-specific schema conditions prevent impossible combinations. P6 mask metho
 - Approval status.
 
 A run that differs from the YAML without citing a matching deviation fails validation. Silent fallbacks are prohibited. If a model, dataset, selected example, seed, metric definition, or training-shape value changes, record a deviation and increment the protocol major version. Adding an optional method-specific field increments the minor version. Clarifying prose without changing behavior increments the patch version.
+
+`protocol/releases.json` is consistency metadata within one checkout. The protocol CI job supplies the external trust boundary by comparing it with the pull request's base branch and rejecting removal or modification of any released version; only new version entries may be appended. The same job requires the base branch's deviation ledger to remain an exact byte prefix of the proposed ledger. A changed frozen YAML value requires a new major protocol version and an exact approved deviation for every changed field; a patch-version registry entry cannot launder a semantic change.
 
 The five-day gate compares protocol-matching runs by default. Deviated runs are displayed separately unless the deviation explicitly states and justifies comparability.
 

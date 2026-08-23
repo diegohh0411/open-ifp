@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import re
 import subprocess
@@ -12,6 +13,7 @@ import yaml
 from jsonschema import Draft202012Validator
 
 from scripts.validate_protocol import ProtocolValidationError, load_deviations, load_json_strict, validate_result
+from scripts.materialize_protocol_manifests import resolve_output_path, write_manifest
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -23,6 +25,10 @@ def load_protocol() -> dict[str, object]:
         loaded = yaml.safe_load(handle)
     assert isinstance(loaded, dict)
     return loaded
+
+
+def sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 EXPECTED_RUNTIME = {
     "mlx": "0.31.2",
@@ -62,9 +68,50 @@ def test_forbidden_runtime_dependencies_are_absent() -> None:
     assert names.isdisjoint(FORBIDDEN)
 
 
-def test_setup_installs_runtime_and_dev_requirements() -> None:
+def test_setup_installs_released_environment_lock() -> None:
     setup = (ROOT / "setup.sh").read_text(encoding="utf-8")
-    assert "python -m pip install -r requirements.txt -r requirements-dev.txt" in setup
+    assert '"${PYTHON_BIN}" -m venv --clear .venv' in setup
+    assert "python -m pip install -r requirements-lock.txt" in setup
+
+
+def test_manifest_output_must_stay_inside_repository() -> None:
+    with pytest.raises(ValueError, match="escapes repository"):
+        resolve_output_path("../outside.json")
+
+
+def test_manifest_digest_mismatch_does_not_overwrite_existing_file(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "manifest.json"
+    path.write_text("original\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="generated manifest digest mismatch"):
+        write_manifest(path, {"entries": []}, expected_sha256="0" * 64)
+    assert path.read_text(encoding="utf-8") == "original\n"
+
+
+@pytest.mark.parametrize(
+    ("actual", "expected_returncode"),
+    [("3.12.14", 0), ("3.12.13", 1), ("3.11.9", 1)],
+)
+def test_released_python_version_checker(
+    actual: str,
+    expected_returncode: int,
+) -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "scripts/check_python_version.py",
+            "--expected",
+            "3.12.14",
+            "--actual",
+            actual,
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == expected_returncode, completed.stderr
 
 
 def test_generation_resolves_the_immutable_cached_snapshot() -> None:
@@ -112,6 +159,8 @@ def test_protocol_freezes_selection_and_serialization_algorithms() -> None:
     data = protocol["training_data"]
     assert data["canonicalization"] == {
         "encoding": "utf-8",
+        "ensure_ascii": False,
+        "unicode_normalization": "none",
         "sort_keys": True,
         "json_separators": [",", ":"],
         "hash_prefix": "20260821\n",
@@ -119,6 +168,7 @@ def test_protocol_freezes_selection_and_serialization_algorithms() -> None:
     }
     assert data["selection"] == {
         "sort": "sha256_ascending_within_category",
+        "tie_break": "source_index_ascending",
         "train_slice": [0, 100],
         "held_out_slice": [100, 125],
     }
@@ -127,6 +177,46 @@ def test_protocol_freezes_selection_and_serialization_algorithms() -> None:
     assert evaluation["selection"]["tie_break"] == "prompt_sha256_ascending"
     assert evaluation["selection"]["fill"] == "prompt_sha256_ascending"
     assert evaluation["manifest_fields"] == ["original_key", "prompt_sha256", "instruction_ids"]
+
+
+def test_canonical_manifests_exist_and_match_protocol() -> None:
+    protocol = load_protocol()
+    for section in ("training_data", "evaluation"):
+        manifest = protocol[section].get("manifest")
+        assert manifest is not None
+        path = ROOT / manifest["path"]
+        assert path.is_file()
+        assert sha256_file(path) == manifest["sha256"]
+
+
+def test_training_manifest_freezes_exact_train_and_held_out_rows() -> None:
+    protocol = load_protocol()
+    manifest_config = protocol["training_data"].get("manifest")
+    assert manifest_config is not None
+    path = ROOT / manifest_config["path"]
+    manifest = load_json(path)
+    assert manifest["source_sha256"] == "2df9083338b4abd6bceb5635764dab5d833b393b55759dffb0959b6fcbf794ec"
+    entries = manifest["entries"]
+    assert len(entries) == 500
+    assert {entry["split"] for entry in entries} == {"train", "held_out"}
+    assert len({entry["row_sha256"] for entry in entries}) == 500
+    for category in protocol["training_data"]["categories"]:
+        selected = [entry for entry in entries if entry["category"] == category]
+        assert sum(entry["split"] == "train" for entry in selected) == 100
+        assert sum(entry["split"] == "held_out" for entry in selected) == 25
+
+
+def test_ifeval_manifest_freezes_exact_objective_subset() -> None:
+    protocol = load_protocol()
+    manifest_config = protocol["evaluation"].get("manifest")
+    assert manifest_config is not None
+    path = ROOT / manifest_config["path"]
+    manifest = load_json(path)
+    assert manifest["source_sha256"] == "67ffeee0fcb87c317c5b08a2de85557b4a7e96ada6178aa645b4954fe4b53d49"
+    entries = manifest["entries"]
+    assert len(entries) == 100
+    assert len({entry["original_key"] for entry in entries}) == 100
+    assert len({entry["prompt_sha256"] for entry in entries}) == 100
 
 
 def test_protocol_keeps_effective_update_size_constant() -> None:
@@ -170,6 +260,10 @@ def test_protocol_declares_every_required_metric() -> None:
         "swap_used_start_bytes": ("bytes", "sysctl_vm_swapusage_at_start"),
         "swap_used_end_bytes": ("bytes", "sysctl_vm_swapusage_at_end"),
         "swap_delta_bytes": ("bytes", "end_minus_start"),
+        "swap_increase_streak_max": (
+            "samples",
+            "maximum_consecutive_one_minute_increases",
+        ),
         "checkpoint_size_bytes": ("bytes", "recursive_regular_file_sum"),
         "held_out_nll": ("nats_per_token", "assistant_token_negative_log_likelihood"),
         "held_out_tokens": ("tokens", "evaluated_assistant_tokens"),
@@ -216,6 +310,7 @@ def test_dense_example_validates_against_schema() -> None:
         "metrics",
         "evaluation",
         "artifacts",
+        "compute_gate",
         "deviation_ids",
         "failure",
     ],
@@ -269,6 +364,81 @@ def test_schema_requires_failure_details_for_failed_run() -> None:
     result["status"] = "failed"
     result["failure"] = None
     assert list(schema_validator().iter_errors(result))
+
+
+def test_schema_allows_failed_run_with_unknown_compute_gate() -> None:
+    result = dense_example()
+    result["status"] = "failed"
+    result["failure"] = {
+        "stage": "setup",
+        "type": "MissingAsset",
+        "message": "pinned asset unavailable",
+    }
+    result["compute_gate"] = {"passed": None, "reasons": []}
+    for group in ("metrics", "evaluation", "artifacts"):
+        for field in result[group]:
+            result[group][field] = None
+    schema_validator().validate(result)
+
+
+def test_validator_accepts_failed_run_with_partial_measurements() -> None:
+    result = dense_example()
+    result["status"] = "failed"
+    result["failure"] = {
+        "stage": "setup",
+        "type": "MissingAsset",
+        "message": "pinned asset unavailable",
+    }
+    result["compute_gate"] = {"passed": None, "reasons": []}
+    for group in ("metrics", "evaluation", "artifacts"):
+        for field in result[group]:
+            result[group][field] = None
+    validate_result(result, load_protocol(), {})
+
+
+def test_failed_run_with_raw_evidence_requires_derived_aggregates_and_gate() -> None:
+    result = dense_example()
+    result["status"] = "failed"
+    result["failure"] = {
+        "stage": "training",
+        "type": "InjectedFailure",
+        "message": "raw evidence survived",
+    }
+    for field in result["metrics"]:
+        result["metrics"][field] = None
+    for field in result["evaluation"]:
+        result["evaluation"][field] = None
+    result["compute_gate"] = {"passed": None, "reasons": []}
+    with pytest.raises(ProtocolValidationError, match="raw_step_times requires"):
+        validate_result(result, load_protocol(), {})
+
+
+def test_failed_run_rejects_partial_throughput_dependency_group() -> None:
+    result = dense_example()
+    result["status"] = "failed"
+    result["failure"] = {
+        "stage": "training",
+        "type": "InjectedFailure",
+        "message": "partial counters",
+    }
+    result["metrics"]["training_wall_clock_seconds"] = None
+    result["metrics"]["train_tokens"] = None
+    result["metrics"]["train_tokens_per_second"] = 999.0
+    with pytest.raises(ProtocolValidationError, match="throughput dependency group"):
+        validate_result(result, load_protocol(), {})
+
+
+def test_failed_run_rejects_known_gate_without_raw_memory() -> None:
+    result = dense_example()
+    result["status"] = "failed"
+    result["failure"] = {
+        "stage": "training",
+        "type": "InjectedFailure",
+        "message": "memory artifact missing",
+    }
+    result["artifacts"]["raw_memory_samples"] = None
+    with pytest.raises(ProtocolValidationError, match="raw_memory_samples"):
+        validate_result(result, load_protocol(), {})
 
 
 def test_schema_enforces_method_specific_groups() -> None:
@@ -327,6 +497,7 @@ def test_schema_accepts_each_method_group(method: str, p6: object, p8: object) -
         ("metrics", "swap_used_start_bytes"),
         ("metrics", "swap_used_end_bytes"),
         ("metrics", "swap_delta_bytes"),
+        ("metrics", "swap_increase_streak_max"),
         ("metrics", "checkpoint_size_bytes"),
         ("evaluation", "held_out_nll"),
         ("evaluation", "held_out_tokens"),
@@ -336,7 +507,9 @@ def test_schema_accepts_each_method_group(method: str, p6: object, p8: object) -
         ("evaluation", "ifeval_loose_instruction_accuracy"),
         ("artifacts", "raw_step_times"),
         ("artifacts", "raw_memory_samples"),
+        ("artifacts", "training_split_manifest"),
         ("artifacts", "ifeval_subset_manifest"),
+        ("artifacts", "held_out_evaluation"),
         ("artifacts", "ifeval_responses"),
         ("artifacts", "checkpoint"),
     ],
@@ -358,10 +531,96 @@ def test_result_matching_protocol_has_no_deviation() -> None:
     validate_result(dense_example(), load_protocol(), {})
 
 
+def capacity_example() -> dict[str, object]:
+    result = dense_example()
+    result["config"].update(
+        {
+            "run_profile": "capacity_probe",
+            "sequence_length": 256,
+            "gradient_accumulation_steps": 8,
+            "token_budget": None,
+            "warmup_steps": 20,
+            "measured_steps": 200,
+        }
+    )
+    result["metrics"].update(
+        {
+            "train_tokens": 409_600,
+            "train_tokens_per_second": 40_960.0,
+            "checkpoint_size_bytes": None,
+        }
+    )
+    for field in result["evaluation"]:
+        result["evaluation"][field] = None
+    for field in (
+        "training_split_manifest",
+        "ifeval_subset_manifest",
+        "held_out_evaluation",
+        "ifeval_responses",
+        "checkpoint",
+    ):
+        result["artifacts"][field] = None
+    return result
+
+
+def test_capacity_probe_has_an_executable_result_contract() -> None:
+    result = capacity_example()
+    schema_validator().validate(result)
+    validate_result(result, load_protocol(), {})
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("warmup_steps", 19), ("measured_steps", 199), ("token_budget", 250_000)],
+)
+def test_capacity_probe_rejects_unfrozen_shape(field: str, value: object) -> None:
+    result = capacity_example()
+    result["config"][field] = value
+    with pytest.raises(ProtocolValidationError, match="schema validation"):
+        validate_result(result, load_protocol(), {})
+
+
+def test_result_rejects_missing_declared_artifact() -> None:
+    result = dense_example()
+    result["artifacts"]["raw_step_times"] = {
+        "path": "results/example/does-not-exist.json",
+        "sha256": "0" * 64,
+    }
+    with pytest.raises(ProtocolValidationError, match="missing result artifact"):
+        validate_result(result, load_protocol(), {})
+
+
+@pytest.mark.parametrize(
+    ("group", "field", "value", "message"),
+    [
+        ("metrics", "step_time_p50_ms", 121.0, "step_time_p50_ms"),
+        ("metrics", "os_peak_rss_bytes", 8_999_999_999, "os_peak_rss_bytes"),
+        ("metrics", "checkpoint_size_bytes", 999, "checkpoint_size_bytes"),
+        ("evaluation", "held_out_nll", 2.6, "held_out_nll"),
+        (
+            "evaluation",
+            "ifeval_strict_prompt_accuracy",
+            0.26,
+            "ifeval_strict_prompt_accuracy",
+        ),
+    ],
+)
+def test_result_aggregates_must_match_hashed_raw_artifacts(
+    group: str,
+    field: str,
+    value: object,
+    message: str,
+) -> None:
+    result = dense_example()
+    result[group][field] = value
+    with pytest.raises(ProtocolValidationError, match=message):
+        validate_result(result, load_protocol(), {})
+
+
 def test_missing_protocol_field_is_invalid_not_keyerror() -> None:
     protocol = load_protocol()
     del protocol["runtime"]["direct_packages"]["mlx"]
-    with pytest.raises(ProtocolValidationError, match="missing field"):
+    with pytest.raises(ProtocolValidationError, match="released protocol digest"):
         validate_result(dense_example(), protocol, {})
 
 
@@ -370,6 +629,22 @@ def test_forbidden_package_in_provenance_is_rejected() -> None:
     result["provenance"]["runtime"]["packages"]["torch"] = "2.0.0"
     with pytest.raises(ProtocolValidationError, match="forbidden packages"):
         validate_result(result, load_protocol(), {})
+
+
+def test_runtime_package_map_must_match_released_lock() -> None:
+    result = dense_example()
+    result["provenance"]["runtime"]["packages"]["numpy"] = "0.0.0"
+    with pytest.raises(ProtocolValidationError, match="/provenance/runtime/packages"):
+        validate_result(result, load_protocol(), {})
+
+
+def test_released_environment_lock_matches_protocol() -> None:
+    runtime = load_protocol()["runtime"]
+    lock = runtime.get("lock")
+    assert lock is not None
+    path = ROOT / lock["path"]
+    assert path.is_file()
+    assert sha256_file(path) == lock["sha256"]
 
 
 @pytest.mark.parametrize("package_name", ["Torch", "TorchVision", "TorchTune"])
@@ -387,8 +662,360 @@ def test_unrecorded_seed_change_is_rejected() -> None:
         validate_result(result, load_protocol(), {})
 
 
+def test_unrecorded_token_budget_change_is_rejected() -> None:
+    result = dense_example()
+    result["config"]["token_budget"] = 1
+    with pytest.raises(ProtocolValidationError, match="/config/token_budget"):
+        validate_result(result, load_protocol(), {})
+
+
+def test_quality_result_rejects_capacity_only_sequence_length() -> None:
+    result = dense_example()
+    result["config"]["sequence_length"] = 256
+    result["config"]["gradient_accumulation_steps"] = 8
+    with pytest.raises(ProtocolValidationError, match="schema validation"):
+        validate_result(result, load_protocol(), {})
+
+
+def test_unrecorded_training_manifest_change_is_rejected() -> None:
+    result = dense_example()
+    result["provenance"]["dataset"]["split_manifest_sha256"] = "f" * 64
+    with pytest.raises(
+        ProtocolValidationError,
+        match="/provenance/dataset/split_manifest_sha256",
+    ):
+        validate_result(result, load_protocol(), {})
+
+
+@pytest.mark.parametrize("field", ["config_sha256", "tokenizer_config_sha256"])
+def test_unrecorded_model_file_digest_change_is_rejected(field: str) -> None:
+    result = dense_example()
+    result["provenance"]["model"][field] = "f" * 64
+    with pytest.raises(
+        ProtocolValidationError,
+        match=f"/provenance/model/{field}",
+    ):
+        validate_result(result, load_protocol(), {})
+
+
+def test_unrecorded_model_snapshot_change_is_rejected() -> None:
+    result = dense_example()
+    result["provenance"]["model"]["cache_snapshot"] = "some/other/snapshot"
+    with pytest.raises(
+        ProtocolValidationError,
+        match="/provenance/model/cache_snapshot",
+    ):
+        validate_result(result, load_protocol(), {})
+
+
+def test_unrecorded_model_payload_digest_change_is_rejected() -> None:
+    result = dense_example()
+    result["provenance"]["model"]["files_sha256"]["model.safetensors"] = "f" * 64
+    with pytest.raises(
+        ProtocolValidationError,
+        match="/provenance/model/files_sha256",
+    ):
+        validate_result(result, load_protocol(), {})
+
+
+def test_unrecorded_ifeval_manifest_change_is_rejected() -> None:
+    result = dense_example()
+    result["artifacts"]["ifeval_subset_manifest"]["sha256"] = "f" * 64
+    with pytest.raises(
+        ProtocolValidationError,
+        match="/artifacts/ifeval_subset_manifest/sha256",
+    ):
+        validate_result(result, load_protocol(), {})
+
+
+def test_changed_metric_definition_invalidates_released_protocol() -> None:
+    protocol = load_protocol()
+    protocol["measurements"][0]["definition"] = "changed_without_a_release"
+    with pytest.raises(ProtocolValidationError, match="released protocol digest"):
+        validate_result(dense_example(), protocol, {})
+
+
+def test_fixed_p6_result_rejects_incorrect_realized_dimensions() -> None:
+    result = dense_example()
+    result["config"]["method"] = "p6_static_mask"
+    result["config"]["p6"] = {
+        "activation_fraction": 0.6,
+        "activation_grid": [0.4, 0.6, 0.8, 1.0],
+        "realized_dimensions_per_layer": [1] * 24,
+        "mean_activation_fraction": 0.6,
+    }
+    with pytest.raises(ProtocolValidationError, match="realized_dimensions_per_layer"):
+        validate_result(result, load_protocol(), {})
+
+
+@pytest.mark.parametrize(
+    "method",
+    ["p6_random_mask", "p6_static_mask", "p6_learned_fixed_k"],
+)
+def test_day3_fixed_k_rejects_non_preregistered_fraction(method: str) -> None:
+    result = dense_example()
+    result["config"]["method"] = method
+    result["config"]["p6"] = {
+        "activation_fraction": 0.4,
+        "activation_grid": [0.4, 0.6, 0.8, 1.0],
+        "realized_dimensions_per_layer": [1946] * 24,
+        "mean_activation_fraction": 0.4,
+    }
+    with pytest.raises(ProtocolValidationError, match="/config/p6/activation_fraction"):
+        validate_result(result, load_protocol(), {})
+
+
+@pytest.mark.parametrize(
+    ("started_at", "ended_at", "wall_clock", "message"),
+    [
+        ("2026-08-21T18:00:00Z", "2026-08-21T18:00:01Z", 10.0, "run interval"),
+        ("2026-08-21T19:00:00Z", "2026-08-21T19:00:10Z", 10.0, "raw memory sample"),
+    ],
+)
+def test_result_rejects_run_interval_inconsistent_with_measurements(
+    started_at: str,
+    ended_at: str,
+    wall_clock: float,
+    message: str,
+) -> None:
+    result = dense_example()
+    result["started_at"] = started_at
+    result["ended_at"] = ended_at
+    result["metrics"]["training_wall_clock_seconds"] = wall_clock
+    result["metrics"]["train_tokens_per_second"] = (
+        result["metrics"]["train_tokens"] / wall_clock
+    )
+    with pytest.raises(ProtocolValidationError, match=message):
+        validate_result(result, load_protocol(), {})
+
+
+@pytest.mark.parametrize(
+    ("dimensions", "mean_fraction"),
+    [([1] * 24, 0.6), ([2918] * 24, 0.7)],
+)
+def test_variable_p6_result_rejects_inconsistent_activation_summary(
+    dimensions: list[int],
+    mean_fraction: float,
+) -> None:
+    result = dense_example()
+    result["config"]["method"] = "p6_variable_k"
+    result["config"]["p6"] = {
+        "activation_fraction": None,
+        "activation_grid": [0.4, 0.6, 0.8, 1.0],
+        "realized_dimensions_per_layer": dimensions,
+        "mean_activation_fraction": mean_fraction,
+    }
+    with pytest.raises(ProtocolValidationError, match="variable-k activation summary"):
+        validate_result(result, load_protocol(), {})
+
+
+def test_variable_p6_result_rejects_dimension_off_frozen_grid() -> None:
+    result = dense_example()
+    dimensions = [2918] * 24
+    dimensions[0] = 2919
+    result["config"]["method"] = "p6_variable_k"
+    result["config"]["p6"] = {
+        "activation_fraction": None,
+        "activation_grid": [0.4, 0.6, 0.8, 1.0],
+        "realized_dimensions_per_layer": dimensions,
+        "mean_activation_fraction": sum(dimensions) / len(dimensions) / 4864,
+    }
+    with pytest.raises(ProtocolValidationError, match="frozen activation grid"):
+        validate_result(result, load_protocol(), {})
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (
+            lambda result: result["metrics"].__setitem__(
+                "train_tokens_per_second", 1.0
+            ),
+            "train_tokens_per_second",
+        ),
+        (
+            lambda result: result["metrics"].__setitem__("swap_delta_bytes", 1),
+            "swap_delta_bytes",
+        ),
+        (
+            lambda result: result["metrics"].update(
+                {"step_time_p50_ms": 151.0, "step_time_p95_ms": 150.0}
+            ),
+            "step_time_p50_ms",
+        ),
+        (
+            lambda result: result.__setitem__(
+                "ended_at", "2026-08-21T17:59:59Z"
+            ),
+            "ended_at",
+        ),
+        (
+            lambda result: result["metrics"].__setitem__("train_tokens", 249_999),
+            "train_tokens",
+        ),
+        (
+            lambda result: result["metrics"].__setitem__(
+                "os_peak_rss_bytes", 32_212_254_721
+            ),
+            "os_peak_rss_bytes",
+        ),
+    ],
+)
+def test_completed_result_rejects_inconsistent_derived_values(
+    mutate: object,
+    message: str,
+) -> None:
+    result = dense_example()
+    mutate(result)
+    with pytest.raises(ProtocolValidationError, match=message):
+        validate_result(result, load_protocol(), {})
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (
+            lambda result: result.__setitem__(
+                "ended_at", "2026-08-21T17:59:59Z"
+            ),
+            "ended_at",
+        ),
+        (
+            lambda result: result["metrics"].__setitem__(
+                "train_tokens_per_second", 1.0
+            ),
+            "train_tokens_per_second",
+        ),
+        (
+            lambda result: result["metrics"].__setitem__("swap_delta_bytes", 1),
+            "swap_delta_bytes",
+        ),
+        (
+            lambda result: result["compute_gate"].update(
+                {"passed": False, "reasons": ["peak_rss_exceeded"]}
+            ),
+            "compute_gate",
+        ),
+    ],
+)
+def test_failed_result_rejects_inconsistent_reported_values(
+    mutate: object,
+    message: str,
+) -> None:
+    result = dense_example()
+    result["status"] = "failed"
+    result["failure"] = {
+        "stage": "training",
+        "type": "InjectedFailure",
+        "message": "failed after measurements were captured",
+    }
+    mutate(result)
+    with pytest.raises(ProtocolValidationError, match=message):
+        validate_result(result, load_protocol(), {})
+
+
+def test_deviation_requires_a_new_effective_major_version() -> None:
+    result = dense_example()
+    result["config"]["seed"] = 7
+    result["deviation_ids"] = ["DEV-0001"]
+    deviations = {
+        "DEV-0001": {
+            "deviation_id": "DEV-0001",
+            "timestamp": "2026-08-21T17:30:00Z",
+            "author": "Diego Hernandez",
+            "affected_run_ids": [result["run_id"]],
+            "field_path": "/config/seed",
+            "old_value": 20260821,
+            "new_value": 7,
+            "rationale": "exercise deviation validation",
+            "comparability_impact": "not comparable to protocol seed",
+            "approval_status": "approved",
+            "base_protocol_version": "0.1.0",
+            "effective_protocol_version": "0.1.0",
+        }
+    }
+    with pytest.raises(ProtocolValidationError, match="effective major version"):
+        validate_result(result, load_protocol(), deviations)
+
+
 def test_approved_exact_deviation_allows_seed_change() -> None:
     result = dense_example()
+    result["protocol_version"] = "1.0.0"
+    result["config"]["seed"] = 7
+    result["deviation_ids"] = ["DEV-0001"]
+    deviations = {
+        "DEV-0001": {
+            "deviation_id": "DEV-0001",
+            "timestamp": "2026-08-21T17:30:00Z",
+            "author": "Diego Hernandez",
+            "affected_run_ids": [result["run_id"]],
+            "field_path": "/config/seed",
+            "old_value": 20260821,
+            "new_value": 7,
+            "rationale": "exercise deviation validation",
+            "comparability_impact": "not comparable to protocol seed",
+            "approval_status": "approved",
+            "base_protocol_version": "0.1.0",
+            "effective_protocol_version": "1.0.0",
+        }
+    }
+    validate_result(result, load_protocol(), deviations)
+
+
+def test_approved_exact_deviation_allows_runtime_package_map_change() -> None:
+    result = dense_example()
+    original_packages = copy.deepcopy(result["provenance"]["runtime"]["packages"])
+    changed_packages = copy.deepcopy(original_packages)
+    changed_packages["numpy"] = "2.5.3"
+    result["provenance"]["runtime"]["packages"] = changed_packages
+    result["protocol_version"] = "1.0.0"
+    result["deviation_ids"] = ["DEV-0001"]
+    deviations = {
+        "DEV-0001": {
+            "deviation_id": "DEV-0001",
+            "timestamp": "2026-08-21T17:30:00Z",
+            "author": "Diego Hernandez",
+            "affected_run_ids": [result["run_id"]],
+            "field_path": "/provenance/runtime/packages",
+            "old_value": original_packages,
+            "new_value": changed_packages,
+            "rationale": "exercise environment deviation validation",
+            "comparability_impact": "not comparable to protocol environment",
+            "approval_status": "approved",
+            "base_protocol_version": "0.1.0",
+            "effective_protocol_version": "1.0.0",
+        }
+    }
+    validate_result(result, load_protocol(), deviations)
+
+
+def test_cited_deviation_must_authorize_an_actual_mismatch() -> None:
+    result = dense_example()
+    result["protocol_version"] = "1.0.0"
+    result["deviation_ids"] = ["DEV-0001"]
+    deviations = {
+        "DEV-0001": {
+            "deviation_id": "DEV-0001",
+            "timestamp": "2026-08-21T17:30:00Z",
+            "author": "Diego Hernandez",
+            "affected_run_ids": [result["run_id"]],
+            "field_path": "/config/seed",
+            "old_value": 20260821,
+            "new_value": 7,
+            "rationale": "not actually used by this run",
+            "comparability_impact": "not comparable to protocol seed",
+            "approval_status": "approved",
+            "base_protocol_version": "0.1.0",
+            "effective_protocol_version": "1.0.0",
+        }
+    }
+    with pytest.raises(ProtocolValidationError, match="unused deviation_ids"):
+        validate_result(result, load_protocol(), deviations)
+
+
+def test_deviation_must_be_approved_before_run_starts() -> None:
+    result = dense_example()
+    result["protocol_version"] = "1.0.0"
     result["config"]["seed"] = 7
     result["deviation_ids"] = ["DEV-0001"]
     deviations = {
@@ -400,22 +1027,26 @@ def test_approved_exact_deviation_allows_seed_change() -> None:
             "field_path": "/config/seed",
             "old_value": 20260821,
             "new_value": 7,
-            "rationale": "exercise deviation validation",
+            "rationale": "approved after the run began",
             "comparability_impact": "not comparable to protocol seed",
-            "approval_status": "approved"
+            "approval_status": "approved",
+            "base_protocol_version": "0.1.0",
+            "effective_protocol_version": "1.0.0",
         }
     }
-    validate_result(result, load_protocol(), deviations)
+    with pytest.raises(ProtocolValidationError, match="before run start"):
+        validate_result(result, load_protocol(), deviations)
 
 
 def test_deviation_must_match_run_path_and_value() -> None:
     result = dense_example()
+    result["protocol_version"] = "1.0.0"
     result["config"]["seed"] = 7
     result["deviation_ids"] = ["DEV-0001"]
     deviations = {
         "DEV-0001": {
             "deviation_id": "DEV-0001",
-            "timestamp": "2026-08-21T18:30:00Z",
+            "timestamp": "2026-08-21T17:30:00Z",
             "author": "Diego Hernandez",
             "affected_run_ids": ["another-run"],
             "field_path": "/config/seed",
@@ -423,10 +1054,43 @@ def test_deviation_must_match_run_path_and_value() -> None:
             "new_value": 8,
             "rationale": "wrong target",
             "comparability_impact": "none",
-            "approval_status": "approved"
+            "approval_status": "approved",
+            "base_protocol_version": "0.1.0",
+            "effective_protocol_version": "1.0.0",
         }
     }
     with pytest.raises(ProtocolValidationError, match="/config/seed"):
+        validate_result(result, load_protocol(), deviations)
+
+
+def test_deviation_matching_distinguishes_boolean_from_numeric_value() -> None:
+    result = dense_example()
+    result["protocol_version"] = "1.0.0"
+    result["config"]["method"] = "p6_learned_fixed_k"
+    result["config"]["p6"] = {
+        "activation_fraction": 1.0,
+        "activation_grid": [0.4, 0.6, 0.8, 1.0],
+        "realized_dimensions_per_layer": [4864] * 24,
+        "mean_activation_fraction": 1.0,
+    }
+    result["deviation_ids"] = ["DEV-0001"]
+    deviations = {
+        "DEV-0001": {
+            "deviation_id": "DEV-0001",
+            "timestamp": "2026-08-21T17:30:00Z",
+            "author": "Diego Hernandez",
+            "affected_run_ids": [result["run_id"]],
+            "field_path": "/config/p6/activation_fraction",
+            "old_value": 0.6,
+            "new_value": True,
+            "rationale": "type-confusion probe",
+            "comparability_impact": "not comparable",
+            "approval_status": "approved",
+            "base_protocol_version": "0.1.0",
+            "effective_protocol_version": "1.0.0",
+        }
+    }
+    with pytest.raises(ProtocolValidationError, match="activation_fraction"):
         validate_result(result, load_protocol(), deviations)
 
 
@@ -441,7 +1105,9 @@ def test_deviation_reader_rejects_duplicate_ids(tmp_path: Path) -> None:
         "new_value": 7,
         "rationale": "duplicate test",
         "comparability_impact": "not comparable",
-        "approval_status": "approved"
+        "approval_status": "approved",
+        "base_protocol_version": "0.1.0",
+        "effective_protocol_version": "1.0.0",
     })
     path = tmp_path / "deviations.jsonl"
     path.write_text(f"{line}\n{line}\n", encoding="utf-8")
