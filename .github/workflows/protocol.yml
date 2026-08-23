@@ -1,0 +1,54 @@
+name: Protocol contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          # This runs only offline contract tests; released benchmark runs must
+          # still satisfy runtime.python (3.12.14) through the result validator.
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pytest -q tests/protocol
+      - name: Enforce append-only released identities
+        shell: bash
+        env:
+          BASE_REF: ${{ github.event_name == 'pull_request' && github.base_ref || 'main' }}
+        run: |
+          if git show "origin/${BASE_REF}:protocol/releases.json" > /tmp/open-ifp-base-releases.json 2>/dev/null; then
+            git show "origin/${BASE_REF}:protocol/deviations.jsonl" > /tmp/open-ifp-base-deviations.jsonl
+            git show "origin/${BASE_REF}:protocol/benchmark-v0.1.yaml" > /tmp/open-ifp-base-protocol.yaml
+            git show "origin/${BASE_REF}:protocol/run-result.schema.json" > /tmp/open-ifp-base-schema.json
+          else
+            echo '{"releases":{}}' > /tmp/open-ifp-base-releases.json
+            : > /tmp/open-ifp-base-deviations.jsonl
+          fi
+          if [[ -f /tmp/open-ifp-base-protocol.yaml ]]; then
+            python scripts/verify_release_history.py \
+              /tmp/open-ifp-base-releases.json protocol/releases.json \
+              --base-deviations /tmp/open-ifp-base-deviations.jsonl \
+              --current-deviations protocol/deviations.jsonl \
+              --base-protocol /tmp/open-ifp-base-protocol.yaml \
+              --current-protocol protocol/benchmark-v0.1.yaml \
+              --base-schema /tmp/open-ifp-base-schema.json \
+              --current-schema protocol/run-result.schema.json
+          else
+            python scripts/verify_release_history.py \
+              /tmp/open-ifp-base-releases.json protocol/releases.json \
+              --base-deviations /tmp/open-ifp-base-deviations.jsonl \
+              --current-deviations protocol/deviations.jsonl
+          fi

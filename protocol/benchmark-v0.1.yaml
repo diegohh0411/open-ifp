@@ -1,0 +1,250 @@
+protocol_version: "0.1.0"
+schema_version: "0.1.0"
+status: released
+project: estancia
+purpose: p6_p8_five_day_proof_of_concept_gate
+governance:
+  semester_lock: p6
+  p8_status: candidate
+  combined_method_scope_allowed: false
+platform:
+  chip: Apple M4 Max
+  cpu_cores: 14
+  gpu_cores: 32
+  unified_memory_bytes: 38654705664
+  rss_gate_bytes: 32212254720
+runtime:
+  python: "3.12.14"
+  direct_packages:
+    mlx: "0.31.2"
+    mlx-lm: "0.31.3"
+    huggingface_hub: "1.27.0"
+  lock:
+    path: requirements-lock.txt
+    sha256: 89482f362604bfee785a4bc628236677378c432c4ac9e15de63347746c6bf4cd
+  forbidden_packages:
+    - torch
+    - torchvision
+    - torchtune
+model:
+  repository: Qwen/Qwen2-0.5B-Instruct
+  revision: c540970f9e29518b1d8f06ab8b24cba66ad77b6d
+  tokenizer_repository: Qwen/Qwen2-0.5B-Instruct
+  tokenizer_revision: c540970f9e29518b1d8f06ab8b24cba66ad77b6d
+  cache_snapshot: models--Qwen--Qwen2-0.5B-Instruct/snapshots/c540970f9e29518b1d8f06ab8b24cba66ad77b6d
+  config_sha256: 168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185
+  tokenizer_config_sha256: 482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc
+  files_sha256:
+    config.json: 168aa1bd401abc3bc262ba15ba4e499627a8b4e006e9d050b47c22de20660185
+    generation_config.json: e558847a8b4402616f1273797b015104dc266fe4b520056fca88823ba8f8ebe6
+    merges.txt: 599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3
+    model.safetensors: 130282af0dfa9fe5840737cc49a0d339d06075f83c5a315c3372c9a0740d0b96
+    tokenizer.json: f7c9b2dba4a296b1aa76c16a34b8225c0c118978400d4bb66bff0902d702f5b8
+    tokenizer_config.json: 482bd979881423375ca5414e4e0d94cd7c5349dbb17fffd46b4d36d71e62a1bc
+    vocab.json: ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910
+  allow_moving_revision: false
+  num_hidden_layers: 24
+  intermediate_size: 4864
+training_data:
+  repository: databricks/databricks-dolly-15k
+  revision: feb6109c23dc5bb14eaea059d14b9879284c9234
+  source_sha256: 2df9083338b4abd6bceb5635764dab5d833b393b55759dffb0959b6fcbf794ec
+  license: CC-BY-SA-3.0
+  seed: 20260821
+  categories:
+    - classification
+    - summarization
+    - information_extraction
+    - brainstorming
+  train_per_category: 100
+  held_out_per_category: 25
+  canonical_json_fields:
+    - instruction
+    - context
+    - response
+    - category
+  canonicalization:
+    encoding: utf-8
+    ensure_ascii: false
+    unicode_normalization: none
+    sort_keys: true
+    json_separators:
+      - ","
+      - ":"
+    hash_prefix: "20260821\n"
+    line_endings: lf
+  require_nonempty:
+    - instruction
+    - response
+  selection:
+    sort: sha256_ascending_within_category
+    tie_break: source_index_ascending
+    train_slice:
+      - 0
+      - 100
+    held_out_slice:
+      - 100
+      - 125
+  serialization:
+    chat_template: pinned_tokenizer
+    user_fields:
+      - instruction
+      - context
+    context_separator: "\n\nContext:\n"
+    preserve_context_except_crlf_to_lf: true
+  loss_tokens: assistant_only
+  manifest:
+    path: protocol/manifests/dolly-train-heldout-v0.1.json
+    sha256: ea1c70831e877b1e96fab0eaa4b73685ef2e088afea546316f4ca02fb9720bbd
+evaluation:
+  name: ifeval
+  repository: google-research/google-research
+  revision: 13ec2c53411ad214f13709a2fcc1c1b730c605ff
+  source_sha256: 67ffeee0fcb87c317c5b08a2de85557b4a7e96ada6178aa645b4954fe4b53d49
+  implementation_path: instruction_following_eval
+  subset_size: 100
+  seed: 20260821
+  prompt_hash_prefix: "20260821\n"
+  selection:
+    primary: largest_uncovered_instruction_id_count
+    tie_break: prompt_sha256_ascending
+    secondary_tie_break: original_key_string_ascending
+    fill: prompt_sha256_ascending
+    coverage_completion: every_available_instruction_id
+  manifest_fields:
+    - original_key
+    - prompt_sha256
+    - instruction_ids
+  judge: official_rules_only
+  manifest:
+    path: protocol/manifests/ifeval-subset-v0.1.json
+    sha256: 70c47d105499f10c7d8d6080774c71d247b5e70ffc2de41e02826746ff46cfee
+  decoding:
+    strategy: greedy
+    temperature: 0.0
+    top_p: 1.0
+    max_new_tokens: 1024
+    stop: eos_only
+training:
+  seed: 20260821
+  seed_targets:
+    - python
+    - numpy_when_present
+    - mlx
+    - data_order
+    - mask_initialization
+    - adapter_initialization
+  quality_sequence_length: 512
+  capacity_sequence_lengths:
+    - 256
+    - 512
+  effective_tokens_per_update: 2048
+  capacity_stream: deterministic_full_non_padding_token_blocks
+  sequence_profiles:
+    256:
+      microbatch_size: 1
+      gradient_accumulation_steps: 8
+    512:
+      microbatch_size: 1
+      gradient_accumulation_steps: 4
+  capacity_probe:
+    warmup_steps: 20
+    measured_steps: 200
+p6:
+  activation_grid:
+    - 0.4
+    - 0.6
+    - 0.8
+    - 1.0
+  rounding: round_half_up
+  realized_dimensions_for_qwen2_0_5b:
+    - 1946
+    - 2918
+    - 3891
+    - 4864
+  day3_fixed_fraction: 0.6
+  day3_train_tokens: 250000
+  dense_reference_fraction: 1.0
+p8:
+  methods:
+    - p8_full
+    - p8_lora
+    - p8_qlora
+  train_tokens: 250000
+  lora_rank: 8
+  qlora_rank: 8
+  qlora_quantization_bits: 4
+measurements:
+  - {name: training_wall_clock_seconds, unit: seconds, definition: training_only_excluding_evaluation}
+  - {name: train_tokens, unit: tokens, definition: non_padding_tokens}
+  - {name: train_tokens_per_second, unit: tokens_per_second, definition: train_tokens_divided_by_wall_clock}
+  - {name: step_time_p50_ms, unit: milliseconds, definition: measured_steps_only}
+  - {name: step_time_p95_ms, unit: milliseconds, definition: measured_steps_only}
+  - {name: mlx_peak_memory_bytes, unit: bytes, definition: mlx_allocator_peak}
+  - {name: mlx_active_memory_bytes, unit: bytes, definition: mlx_allocator_active}
+  - {name: mlx_cache_memory_bytes, unit: bytes, definition: mlx_allocator_cache}
+  - {name: os_peak_rss_bytes, unit: bytes, definition: process_rss_sampled_each_second}
+  - {name: memory_free_percent_min, unit: percent, definition: memory_pressure_q_minimum}
+  - {name: swap_used_start_bytes, unit: bytes, definition: sysctl_vm_swapusage_at_start}
+  - {name: swap_used_end_bytes, unit: bytes, definition: sysctl_vm_swapusage_at_end}
+  - {name: swap_delta_bytes, unit: bytes, definition: end_minus_start}
+  - {name: swap_increase_streak_max, unit: samples, definition: maximum_consecutive_one_minute_increases}
+  - {name: checkpoint_size_bytes, unit: bytes, definition: recursive_regular_file_sum}
+  - {name: held_out_nll, unit: nats_per_token, definition: assistant_token_negative_log_likelihood}
+  - {name: held_out_tokens, unit: tokens, definition: evaluated_assistant_tokens}
+  - {name: ifeval_strict_prompt_accuracy, unit: ratio, definition: official_strict_prompt_accuracy}
+  - {name: ifeval_strict_instruction_accuracy, unit: ratio, definition: official_strict_instruction_accuracy}
+  - {name: ifeval_loose_prompt_accuracy, unit: ratio, definition: official_loose_prompt_accuracy}
+  - {name: ifeval_loose_instruction_accuracy, unit: ratio, definition: official_loose_instruction_accuracy}
+sampling:
+  rss_interval_seconds: &rss_interval_seconds 1
+  memory_pressure_interval_seconds: &memory_pressure_interval_seconds 60
+  swap_interval_seconds: &swap_interval_seconds 60
+artifact_formats:
+  version: "0.1.0"
+  step_time_quantile: nearest_rank
+  memory_streams:
+    rss_samples_interval_seconds: *rss_interval_seconds
+    memory_pressure_samples_interval_seconds: *memory_pressure_interval_seconds
+    swap_samples_interval_seconds: *swap_interval_seconds
+  memory_aggregation:
+    mlx_peak_memory_bytes: maximum
+    mlx_active_memory_bytes: final_sample
+    mlx_cache_memory_bytes: final_sample
+    os_peak_rss_bytes: maximum
+    memory_free_percent_min: minimum
+    swap_used_start_bytes: first_sample
+    swap_used_end_bytes: final_sample
+    swap_increase_streak_max: maximum_consecutive_strict_increases
+  held_out_nll: negative_log_likelihood_sum_divided_by_assistant_tokens
+  ifeval_accuracy: passed_count_divided_by_total
+  checkpoint:
+    artifact: sha256_of_manifest_json
+    payload: exact_regular_file_set_under_manifest_root
+    size: sum_of_manifest_regular_file_sizes
+gates:
+  sustained_swap_allowed: false
+  sustained_swap_definition: end_above_start_or_three_consecutive_increases
+  max_peak_rss_bytes: 32212254720
+result_contract:
+  run_profiles:
+    quality_train:
+      sequence_length: 512
+      token_budget: method_budget
+      warmup_steps: null
+      measured_steps: null
+      evaluation_required: true
+    capacity_probe:
+      method: dense_baseline
+      sequence_lengths:
+        - 256
+        - 512
+      token_budget: null
+      warmup_steps: 20
+      measured_steps: 200
+      evaluation_required: false
+  schema_path: protocol/run-result.schema.json
+  example_path: protocol/examples/dense-baseline.json
+  deviations_path: protocol/deviations.jsonl
+  raw_artifacts_required: true
+  verify_artifact_hashes_and_aggregates: true
