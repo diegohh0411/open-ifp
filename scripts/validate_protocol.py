@@ -569,6 +569,7 @@ def verify_result_artifacts(
             raise ProtocolValidationError("raw_memory_samples has wrong format_version")
         run_started_at = parse_utc_timestamp(result["started_at"], context="started_at")
         run_ended_at = parse_utc_timestamp(result["ended_at"], context="ended_at")
+        run_interval_seconds = (run_ended_at - run_started_at).total_seconds()
 
         def sample_stream(
             name: str,
@@ -596,19 +597,25 @@ def verify_result_artifacts(
                         context=f"raw_memory_samples.{name}[{index}].timestamp",
                     )
                 )
-            if timestamps[0] != run_started_at or timestamps[-1] != run_ended_at:
+            jitter_tolerance_seconds = (
+                min(interval_seconds, run_interval_seconds) * 0.1
+            )
+            start_jitter_seconds = abs(
+                (timestamps[0] - run_started_at).total_seconds()
+            )
+            end_jitter_seconds = abs(
+                (timestamps[-1] - run_ended_at).total_seconds()
+            )
+            if (
+                start_jitter_seconds > jitter_tolerance_seconds
+                or end_jitter_seconds > jitter_tolerance_seconds
+            ):
                 raise ProtocolValidationError(
                     f"raw memory sample stream {name} does not span started_at/ended_at run interval"
                 )
             for previous, current in zip(timestamps, timestamps[1:]):
                 elapsed = (current - previous).total_seconds()
-                is_final_remainder = current == run_ended_at
-                cadence_is_valid = (
-                    0 < elapsed <= interval_seconds
-                    if is_final_remainder
-                    else elapsed == interval_seconds
-                )
-                if not cadence_is_valid:
+                if not 0 < elapsed <= interval_seconds + jitter_tolerance_seconds:
                     raise ProtocolValidationError(
                         f"raw memory sample stream {name} violates sampling cadence"
                     )

@@ -197,16 +197,16 @@ measurements:
   - {name: ifeval_loose_prompt_accuracy, unit: ratio, definition: official_loose_prompt_accuracy}
   - {name: ifeval_loose_instruction_accuracy, unit: ratio, definition: official_loose_instruction_accuracy}
 sampling:
-  rss_interval_seconds: 1
-  memory_pressure_interval_seconds: 60
-  swap_interval_seconds: 60
+  rss_interval_seconds: &rss_interval_seconds 1
+  memory_pressure_interval_seconds: &memory_pressure_interval_seconds 60
+  swap_interval_seconds: &swap_interval_seconds 60
 artifact_formats:
   version: "0.1.0"
   step_time_quantile: nearest_rank
   memory_streams:
-    rss_samples_interval_seconds: 1
-    memory_pressure_samples_interval_seconds: 60
-    swap_samples_interval_seconds: 60
+    rss_samples_interval_seconds: *rss_interval_seconds
+    memory_pressure_samples_interval_seconds: *memory_pressure_interval_seconds
+    swap_samples_interval_seconds: *swap_interval_seconds
   memory_aggregation:
     mlx_peak_memory_bytes: maximum
     mlx_active_memory_bytes: final_sample

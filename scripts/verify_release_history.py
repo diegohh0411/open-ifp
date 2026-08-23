@@ -45,10 +45,14 @@ def verify_deviation_history(base_path: Path, current_path: Path) -> None:
 
 
 def semver_major(value: str) -> int:
-    try:
-        return int(value.split(".", maxsplit=1)[0])
-    except (AttributeError, ValueError) as exc:
-        raise ReleaseHistoryError(f"invalid protocol version: {value!r}") from exc
+    if not isinstance(value, str):
+        raise ReleaseHistoryError(f"invalid protocol version: {value!r}")
+    parts = value.split(".")
+    if len(parts) != 3 or any(
+        not part.isascii() or not part.isdecimal() for part in parts
+    ):
+        raise ReleaseHistoryError(f"invalid protocol version: {value!r}")
+    return int(parts[0])
 
 
 def pointer_escape(value: str) -> str:
@@ -182,6 +186,7 @@ def load_protocol(path: Path) -> dict[str, Any]:
     value = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise ReleaseHistoryError(f"invalid protocol document: {path}")
+    semver_major(value.get("protocol_version"))
     return value
 
 

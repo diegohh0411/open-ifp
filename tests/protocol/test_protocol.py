@@ -12,7 +12,13 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator
 
-from scripts.validate_protocol import ProtocolValidationError, load_deviations, load_json_strict, validate_result
+from scripts.validate_protocol import (
+    ProtocolValidationError,
+    load_deviations,
+    load_json_strict,
+    validate_result,
+    verify_result_artifacts,
+)
 from scripts.materialize_protocol_manifests import resolve_output_path, write_manifest
 
 
@@ -289,6 +295,19 @@ def schema_validator() -> Draft202012Validator:
 
 def dense_example() -> dict[str, object]:
     return load_json(ROOT / "protocol/examples/dense-baseline.json")
+
+
+def verify_raw_memory_fixture(tmp_path: Path, raw_memory: dict[str, object]) -> None:
+    path = tmp_path / "raw-memory.json"
+    path.write_text(json.dumps(raw_memory), encoding="utf-8")
+    result = dense_example()
+    result["artifacts"] = {
+        "raw_memory_samples": {
+            "path": path.name,
+            "sha256": sha256_file(path),
+        }
+    }
+    verify_result_artifacts(result, load_protocol(), tmp_path)
 
 
 def test_dense_example_validates_against_schema() -> None:
@@ -787,6 +806,58 @@ def test_result_rejects_run_interval_inconsistent_with_measurements(
     )
     with pytest.raises(ProtocolValidationError, match=message):
         validate_result(result, load_protocol(), {})
+
+
+def test_raw_memory_streams_accept_bounded_scheduler_jitter(tmp_path: Path) -> None:
+    raw_memory = load_json(ROOT / "results/example/raw-memory.json")
+    rss_timestamps = [
+        "2026-08-21T18:00:00.050Z",
+        "2026-08-21T18:00:01.040Z",
+        "2026-08-21T18:00:02.060Z",
+        "2026-08-21T18:00:03.030Z",
+        "2026-08-21T18:00:04.080Z",
+        "2026-08-21T18:00:05.050Z",
+        "2026-08-21T18:00:06.090Z",
+        "2026-08-21T18:00:07.020Z",
+        "2026-08-21T18:00:08.070Z",
+        "2026-08-21T18:00:09.040Z",
+        "2026-08-21T18:00:09.950Z",
+    ]
+    for sample, timestamp in zip(raw_memory["rss_samples"], rss_timestamps):
+        sample["timestamp"] = timestamp
+    for stream_name in ("memory_pressure_samples", "swap_samples"):
+        raw_memory[stream_name][0]["timestamp"] = "2026-08-21T18:00:00.500Z"
+        raw_memory[stream_name][-1]["timestamp"] = "2026-08-21T18:00:09.500Z"
+
+    verify_raw_memory_fixture(tmp_path, raw_memory)
+
+
+@pytest.mark.parametrize(
+    ("stream_name", "sample_index", "timestamp", "message"),
+    [
+        ("rss_samples", 0, "2026-08-21T18:00:00.101Z", "run interval"),
+        ("rss_samples", -1, "2026-08-21T18:00:09.899Z", "run interval"),
+        (
+            "memory_pressure_samples",
+            0,
+            "2026-08-21T18:00:01.001Z",
+            "run interval",
+        ),
+        ("rss_samples", 5, "2026-08-21T18:00:05.101Z", "sampling cadence"),
+    ],
+)
+def test_raw_memory_streams_reject_coverage_beyond_jitter_tolerance(
+    tmp_path: Path,
+    stream_name: str,
+    sample_index: int,
+    timestamp: str,
+    message: str,
+) -> None:
+    raw_memory = load_json(ROOT / "results/example/raw-memory.json")
+    raw_memory[stream_name][sample_index]["timestamp"] = timestamp
+
+    with pytest.raises(ProtocolValidationError, match=message):
+        verify_raw_memory_fixture(tmp_path, raw_memory)
 
 
 @pytest.mark.parametrize(

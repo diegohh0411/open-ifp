@@ -7,6 +7,7 @@ import pytest
 
 from scripts.verify_release_history import (
     ReleaseHistoryError,
+    load_protocol,
     verify_deviation_history,
     verify_protocol_transition,
     verify_schema_transition,
@@ -106,6 +107,53 @@ def test_schema_change_rejects_patch_release_without_deviation() -> None:
             current_version="0.1.1",
             appended_deviations=[],
         )
+
+
+def test_schema_change_accepts_exact_approved_schema_deviation() -> None:
+    base = {"type": "object", "properties": {"run_id": {"type": "string"}}}
+    current = {
+        "type": "object",
+        "properties": {
+            "run_id": {"type": "string"},
+            "status": {"type": "string"},
+        },
+    }
+
+    verify_schema_transition(
+        base,
+        current,
+        base_version="0.1.0",
+        current_version="1.0.0",
+        appended_deviations=[
+            {
+                "field_path": "/result_schema/properties/status",
+                "old_value": None,
+                "new_value": {"type": "string"},
+                "approval_status": "approved",
+                "base_protocol_version": "0.1.0",
+                "effective_protocol_version": "1.0.0",
+            }
+        ],
+    )
+
+
+@pytest.mark.parametrize(
+    "contents",
+    [
+        "{}\n",
+        "protocol_version: not-a-semver\n",
+        "protocol_version: \"1.\u0660.0\"\n",
+    ],
+)
+def test_load_protocol_normalizes_missing_or_invalid_protocol_version(
+    tmp_path: Path,
+    contents: str,
+) -> None:
+    path = tmp_path / "protocol.yaml"
+    path.write_text(contents, encoding="utf-8")
+
+    with pytest.raises(ReleaseHistoryError, match="invalid protocol version"):
+        load_protocol(path)
 
 
 @pytest.mark.parametrize(

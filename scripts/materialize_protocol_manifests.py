@@ -169,6 +169,12 @@ def materialize_ifeval(
     selected.extend(remaining[: subset_size - len(selected)])
     if len(selected) != subset_size:
         raise ValueError(f"IFEval has only {len(selected)} selectable prompts")
+    if uncovered:
+        missing = ", ".join(sorted(uncovered))
+        raise ValueError(
+            "IFEval fixed subset leaves uncovered instruction IDs: "
+            f"{missing}"
+        )
 
     return {
         "manifest_version": "0.1.0",

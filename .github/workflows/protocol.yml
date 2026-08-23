@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: macos-14
@@ -12,19 +15,24 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12.14"
+          # This runs only offline contract tests; released benchmark runs must
+          # still satisfy runtime.python (3.12.14) through the result validator.
+          python-version: "3.12"
           cache: pip
       - run: python -m pip install -r requirements-dev.txt
       - run: python -m pytest -q tests/protocol
       - name: Enforce append-only released identities
         shell: bash
+        env:
+          BASE_REF: ${{ github.event_name == 'pull_request' && github.base_ref || 'main' }}
         run: |
-          if git show "origin/${{ github.base_ref || 'main' }}:protocol/releases.json" > /tmp/open-ifp-base-releases.json 2>/dev/null; then
-            git show "origin/${{ github.base_ref || 'main' }}:protocol/deviations.jsonl" > /tmp/open-ifp-base-deviations.jsonl
-            git show "origin/${{ github.base_ref || 'main' }}:protocol/benchmark-v0.1.yaml" > /tmp/open-ifp-base-protocol.yaml
-            git show "origin/${{ github.base_ref || 'main' }}:protocol/run-result.schema.json" > /tmp/open-ifp-base-schema.json
+          if git show "origin/${BASE_REF}:protocol/releases.json" > /tmp/open-ifp-base-releases.json 2>/dev/null; then
+            git show "origin/${BASE_REF}:protocol/deviations.jsonl" > /tmp/open-ifp-base-deviations.jsonl
+            git show "origin/${BASE_REF}:protocol/benchmark-v0.1.yaml" > /tmp/open-ifp-base-protocol.yaml
+            git show "origin/${BASE_REF}:protocol/run-result.schema.json" > /tmp/open-ifp-base-schema.json
           else
             echo '{"releases":{}}' > /tmp/open-ifp-base-releases.json
             : > /tmp/open-ifp-base-deviations.jsonl
