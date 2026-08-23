@@ -46,7 +46,9 @@ def masked_qwen2_forward(
         )
     attention_mask = create_attention_mask(hidden, cache[0])
 
-    for layer_index, (layer, layer_cache) in enumerate(zip(backbone.layers, cache)):
+    for layer_index, (layer, layer_cache) in enumerate(
+        zip(backbone.layers, cache, strict=True)
+    ):
         attention_output = layer.self_attn(
             layer.input_layernorm(hidden),
             attention_mask,

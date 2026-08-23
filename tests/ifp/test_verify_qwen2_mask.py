@@ -29,6 +29,8 @@ def test_verification_spec_uses_protocol_qwen_dimensions_and_budget_grid() -> No
             "activation_grid": [0.4, 0.6, 0.8, 1.0],
             "rounding": "round_half_up",
             "realized_dimensions_for_qwen2_0_5b": [1946, 2918, 3891, 4864],
+            "day3_fixed_fraction": 0.6,
+            "dense_reference_fraction": 1.0,
         },
     }
 
@@ -38,6 +40,9 @@ def test_verification_spec_uses_protocol_qwen_dimensions_and_budget_grid() -> No
         "seed": 20260821,
         "num_hidden_layers": 24,
         "intermediate_size": 4864,
+        "dense_fraction": 1.0,
+        "gradient_fraction": 0.6,
+        "generation_fractions": [0.4, 0.6, 0.8],
         "budgets": [
             {"fraction": 0.4, "k": 1946},
             {"fraction": 0.6, "k": 2918},
@@ -55,10 +60,60 @@ def test_verification_spec_rejects_protocol_realized_dimension_drift() -> None:
             "activation_grid": [0.4, 0.6, 0.8, 1.0],
             "rounding": "round_half_up",
             "realized_dimensions_for_qwen2_0_5b": [1946, 2918, 3890, 4864],
+            "day3_fixed_fraction": 0.6,
+            "dense_reference_fraction": 1.0,
         },
     }
 
     with pytest.raises(AssertionError, match="realized dimensions"):
+        verification_spec(protocol)
+
+
+def test_verification_spec_derives_budget_roles_from_protocol() -> None:
+    protocol = {
+        "model": {"num_hidden_layers": 2, "intermediate_size": 20},
+        "training_data": {"seed": 17},
+        "p6": {
+            "activation_grid": [0.5, 0.75, 1.0],
+            "rounding": "round_half_up",
+            "realized_dimensions_for_qwen2_0_5b": [10, 15, 20],
+            "day3_fixed_fraction": 0.75,
+            "dense_reference_fraction": 1.0,
+        },
+    }
+
+    spec = verification_spec(protocol)
+
+    assert spec["dense_fraction"] == 1.0
+    assert spec["gradient_fraction"] == 0.75
+    assert spec["generation_fractions"] == [0.5, 0.75]
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("dense_reference_fraction", 0.9, "dense reference fraction"),
+        ("day3_fixed_fraction", 0.7, "gradient fraction"),
+    ],
+)
+def test_verification_spec_rejects_budget_roles_outside_grid(
+    field: str, value: float, message: str
+) -> None:
+    p6 = {
+        "activation_grid": [0.4, 0.6, 0.8, 1.0],
+        "rounding": "round_half_up",
+        "realized_dimensions_for_qwen2_0_5b": [1946, 2918, 3891, 4864],
+        "day3_fixed_fraction": 0.6,
+        "dense_reference_fraction": 1.0,
+    }
+    p6[field] = value
+    protocol = {
+        "model": {"num_hidden_layers": 24, "intermediate_size": 4864},
+        "training_data": {"seed": 20260821},
+        "p6": p6,
+    }
+
+    with pytest.raises(AssertionError, match=message):
         verification_spec(protocol)
 
 
@@ -120,7 +175,7 @@ def test_snapshot_payload_hashes_are_verified(tmp_path) -> None:
 
     assert verify_snapshot_hashes(tmp_path, expected) == expected
     model.write_bytes(b"substituted")
-    with pytest.raises(AssertionError, match="model.safetensors"):
+    with pytest.raises(AssertionError, match=r"model\.safetensors"):
         verify_snapshot_hashes(tmp_path, expected)
 
 

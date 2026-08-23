@@ -26,7 +26,6 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROTOCOL = ROOT / "protocol/benchmark-v0.1.yaml"
 DEFAULT_OUTPUT = ROOT / "results/day1b/qwen2-mask-verification.json"
 DEFAULT_PROMPT = "In one sentence, what is instruction-following pruning?"
-GENERATION_GRID = (0.4, 0.6, 0.8)
 BF16_ATOL = 1e-2
 BF16_RTOL = 1e-2
 
@@ -41,18 +40,31 @@ def verification_spec(protocol: dict[str, Any]) -> dict[str, Any]:
         raise AssertionError("Day 1B requires protocol round_half_up")
     fractions = [float(fraction) for fraction in p6["activation_grid"]]
     realized = [int(k) for k in p6["realized_dimensions_for_qwen2_0_5b"]]
+    dense_fraction = float(p6["dense_reference_fraction"])
+    gradient_fraction = float(p6["day3_fixed_fraction"])
     computed = [realize_k(width, fraction) for fraction in fractions]
     if realized != computed:
         raise AssertionError(
             f"protocol realized dimensions {realized} do not match computed {computed}"
         )
+    if dense_fraction != 1.0 or dense_fraction not in fractions:
+        raise AssertionError(
+            "protocol dense reference fraction must be the 1.0 activation budget"
+        )
+    if gradient_fraction not in fractions:
+        raise AssertionError("protocol gradient fraction must be in activation_grid")
     return {
         "seed": seed,
         "num_hidden_layers": layers,
         "intermediate_size": width,
+        "dense_fraction": dense_fraction,
+        "gradient_fraction": gradient_fraction,
+        "generation_fractions": [
+            fraction for fraction in fractions if fraction != dense_fraction
+        ],
         "budgets": [
             {"fraction": fraction, "k": k}
-            for fraction, k in zip(fractions, realized)
+            for fraction, k in zip(fractions, realized, strict=True)
         ],
     }
 
@@ -177,6 +189,7 @@ def _gradient_record(
     prompt_tokens: list[int],
     scores: np.ndarray,
     k: int,
+    fraction: float,
 ) -> dict[str, Any]:
     model.freeze()
     trainable_before = tree_flatten(model.trainable_parameters())
@@ -198,7 +211,7 @@ def _gradient_record(
     if not passed:
         raise AssertionError("mask-score gradient or frozen-backbone check failed")
     return {
-        "budget_fraction": 0.6,
+        "budget_fraction": fraction,
         "k": k,
         "finite": finite,
         "nonzero_count": nonzero,
@@ -276,17 +289,32 @@ def run_verification(
         masks[fraction] = mask
         budget_records.append(record)
 
-    dense_equivalence = _dense_equivalence(model, prompt_tokens, masks[1.0])
-    gradient = _gradient_record(model, prompt_tokens, scores_np, realize_k(spec["intermediate_size"], 0.6))
+    budget_records_by_fraction = {
+        record["fraction"]: record for record in budget_records
+    }
+    dense_fraction = spec["dense_fraction"]
+    gradient_fraction = spec["gradient_fraction"]
+    dense_equivalence = _dense_equivalence(
+        model,
+        prompt_tokens,
+        masks[dense_fraction],
+    )
+    gradient = _gradient_record(
+        model,
+        prompt_tokens,
+        scores_np,
+        budget_records_by_fraction[gradient_fraction]["k"],
+        gradient_fraction,
+    )
 
-    for fraction in GENERATION_GRID:
+    for fraction in spec["generation_fractions"]:
         adapter = MaskedQwen2(model, masks[fraction])
         first = _greedy_token_ids(adapter, prompt_tokens, max_tokens)
         second = _greedy_token_ids(adapter, prompt_tokens, max_tokens)
         deterministic = first == second
         if not deterministic:
             raise AssertionError(f"generation was nondeterministic at fraction {fraction}")
-        record = next(item for item in budget_records if item["fraction"] == fraction)
+        record = budget_records_by_fraction[fraction]
         record["generation"] = {
             "deterministic": deterministic,
             "token_ids": first,
