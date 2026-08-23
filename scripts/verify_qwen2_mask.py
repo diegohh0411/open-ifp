@@ -26,7 +26,6 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROTOCOL = ROOT / "protocol/benchmark-v0.1.yaml"
 DEFAULT_OUTPUT = ROOT / "results/day1b/qwen2-mask-verification.json"
 DEFAULT_PROMPT = "In one sentence, what is instruction-following pruning?"
-ACTIVATION_GRID = (0.4, 0.6, 0.8, 1.0)
 GENERATION_GRID = (0.4, 0.6, 0.8)
 BF16_ATOL = 1e-2
 BF16_RTOL = 1e-2
@@ -37,13 +36,23 @@ def verification_spec(protocol: dict[str, Any]) -> dict[str, Any]:
     layers = int(protocol["model"]["num_hidden_layers"])
     width = int(protocol["model"]["intermediate_size"])
     seed = int(protocol["training_data"]["seed"])
+    p6 = protocol["p6"]
+    if p6["rounding"] != "round_half_up":
+        raise AssertionError("Day 1B requires protocol round_half_up")
+    fractions = [float(fraction) for fraction in p6["activation_grid"]]
+    realized = [int(k) for k in p6["realized_dimensions_for_qwen2_0_5b"]]
+    computed = [realize_k(width, fraction) for fraction in fractions]
+    if realized != computed:
+        raise AssertionError(
+            f"protocol realized dimensions {realized} do not match computed {computed}"
+        )
     return {
         "seed": seed,
         "num_hidden_layers": layers,
         "intermediate_size": width,
         "budgets": [
-            {"fraction": fraction, "k": realize_k(width, fraction)}
-            for fraction in ACTIVATION_GRID
+            {"fraction": fraction, "k": k}
+            for fraction, k in zip(fractions, realized)
         ],
     }
 
@@ -58,9 +67,7 @@ def build_random_scores(
     )
 
 
-def canonical_write_json(path: Path, payload: dict[str, Any]) -> None:
-    """Write stable UTF-8 JSON suitable for byte-for-byte rerun comparison."""
-    path.parent.mkdir(parents=True, exist_ok=True)
+def _canonical_json_bytes(payload: dict[str, Any]) -> bytes:
     encoded = json.dumps(
         payload,
         ensure_ascii=False,
@@ -68,7 +75,26 @@ def canonical_write_json(path: Path, payload: dict[str, Any]) -> None:
         sort_keys=True,
         allow_nan=False,
     )
-    path.write_text(encoded + "\n", encoding="utf-8", newline="\n")
+    return (encoded + "\n").encode("utf-8")
+
+
+def canonical_write_json(path: Path, payload: dict[str, Any]) -> None:
+    """Write stable UTF-8 JSON suitable for byte-for-byte rerun comparison."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(_canonical_json_bytes(payload))
+
+
+def verify_or_write_canonical_json(path: Path, payload: dict[str, Any]) -> None:
+    """Create first-run evidence, or enforce exact committed evidence thereafter."""
+    expected = _canonical_json_bytes(payload)
+    if path.exists():
+        if path.read_bytes() != expected:
+            raise AssertionError(
+                f"fresh verification does not match committed evidence at {path}"
+            )
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(expected)
 
 
 def as_float32_numpy(array: mx.array) -> np.ndarray:
@@ -78,6 +104,25 @@ def as_float32_numpy(array: mx.array) -> np.ndarray:
 
 def _sha256(array: np.ndarray) -> str:
     return hashlib.sha256(np.ascontiguousarray(array).tobytes()).hexdigest()
+
+
+def verify_snapshot_hashes(
+    snapshot: Path, expected_hashes: dict[str, str]
+) -> dict[str, str]:
+    """Hash every protocol-pinned model/tokenizer payload before loading it."""
+    actual: dict[str, str] = {}
+    for filename, expected in sorted(expected_hashes.items()):
+        path = snapshot / filename
+        if not path.is_file():
+            raise AssertionError(f"pinned snapshot file is missing: {filename}")
+        with path.open("rb") as handle:
+            digest = hashlib.file_digest(handle, "sha256").hexdigest()
+        if digest != expected:
+            raise AssertionError(
+                f"pinned snapshot hash mismatch for {filename}: {digest} != {expected}"
+            )
+        actual[filename] = digest
+    return actual
 
 
 def _mask_record(mask: mx.array, expected_k: int) -> dict[str, Any]:
@@ -184,6 +229,7 @@ def run_verification(
     )
     if snapshot.name != model_protocol["revision"]:
         raise AssertionError("resolved model snapshot does not match pinned revision")
+    snapshot_hashes = verify_snapshot_hashes(snapshot, model_protocol["files_sha256"])
 
     model, tokenizer = load(snapshot)
     if model.model_type != "qwen2":
@@ -257,6 +303,10 @@ def run_verification(
             "model_type": model.model_type,
             "num_hidden_layers": spec["num_hidden_layers"],
             "intermediate_size": spec["intermediate_size"],
+            "snapshot_integrity": {
+                "verified": True,
+                "files_sha256": snapshot_hashes,
+            },
         },
         "runtime": {
             "mlx": importlib.metadata.version("mlx"),
@@ -282,7 +332,7 @@ def run_verification(
         "gradient": gradient,
         "budgets": budget_records,
     }
-    canonical_write_json(output_path, payload)
+    verify_or_write_canonical_json(output_path, payload)
     return payload
 
 
